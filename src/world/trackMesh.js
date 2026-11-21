@@ -1,7 +1,7 @@
 // Draws the running track: tartan surface, lane lines, kerb, infield, start/finish markings.
 import * as THREE from 'three';
 import { T, pointAt, measureOffset, laneCenter } from './track.js';
-import { tartanTextures, grassTextures, concreteTexture, textTexture } from './textures.js';
+import { tartanTextures, grassTextures, concreteTexture, textTexture, trackTextures, infieldTexture } from './textures.js';
 
 
 // Stations (distances along the kerb line) used to sample the oval smoothly.
@@ -100,12 +100,14 @@ export class TrackMesh {
     const surf = new THREE.Mesh(ribbon(-0.08, T.WALL, 0, 0.25), tartan);
     surf.receiveShadow = true;
     this.group.add(surf);
+    this.surf = surf;
     // 100 m chute (straight extension behind the home straight)
     const chute = new THREE.Mesh(quad(-T.L / 2 - T.CHUTE, T.R - 0.08, -T.L / 2, T.R + T.WALL, 0.001), tartan.clone());
     chute.material.polygonOffset = true;
     chute.material.polygonOffsetFactor = -1;
     chute.receiveShadow = true;
     this.group.add(chute);
+    this.chute = chute;
 
     // lane lines
     const lm = lineMat();
@@ -175,17 +177,40 @@ export class TrackMesh {
     infield.position.y = -0.003;
     infield.receiveShadow = true;
     this.group.add(infield);
+    this.infield = infield;
+    this.kerb = [kerbTop, kerbIn, kerbOut];
 
     // concourse walkway outside the barrier
     const conc = new THREE.Mesh(ribbon(T.WALL, T.WALL + 4.5, -0.002, 0.25, 64), new THREE.MeshStandardMaterial({ map: concreteTexture(), roughness: 0.95 }));
     conc.receiveShadow = true;
     this.group.add(conc);
+    this.conc = conc;
     const chuteConc = new THREE.Mesh(
       quad(-T.L / 2 - T.CHUTE - 4, T.R - 1, -T.L / 2 - T.CHUTE, T.R + T.WALL + 4.5, -0.001),
       conc.material,
     );
     chuteConc.receiveShadow = true;
     this.group.add(chuteConc);
+  }
+
+  // Change the look of the track for a venue (surface colour, infield, walkway).
+  setVenue(v) {
+    const tt = trackTextures(v.track);
+    for (const m of [this.surf.material, this.chute.material]) {
+      m.map = tt.map;
+      m.bumpMap = tt.bump;
+      m.bumpScale = v.track.kind === 'tartan' ? 0.6 : 1.2;
+      m.roughness = v.track.kind === 'tartan' ? 0.92 : 1;
+      m.needsUpdate = true;
+    }
+    this.infield.material.map = infieldTexture(v.infield);
+    this.infield.material.needsUpdate = true;
+    // grass and countryside tracks have no metal kerb, just paint
+    for (const k of this.kerb) k.visible = v.track.kind === 'tartan' || v.track.kind === 'clay';
+    const walkway = { grass: 0x6f9a52, meadow: 0x6f9a52, sand: 0xd8b886, floor: 0x3b3e48 }[v.ground] || 0xffffff;
+    this.conc.material.color.setHex(v.ground === 'grass' && v.wall === 'ads' ? 0xffffff : walkway);
+    this.conc.material.map = v.ground === 'grass' && v.wall === 'ads' ? concreteTexture() : null;
+    this.conc.material.needsUpdate = true;
   }
 
   // Start lines + break line for the selected race.

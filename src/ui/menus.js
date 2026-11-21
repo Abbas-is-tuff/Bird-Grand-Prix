@@ -2,6 +2,7 @@
 import { ROSTER, BIRDS } from '../data/roster.js';
 import { SPECIES, ratings } from '../data/species.js';
 import { RACE_LIST, RACES, TIMES_OF_DAY, DIFFICULTY } from '../data/races.js';
+import { VENUES, VENUE_LIST } from '../data/venues.js';
 import { PERSONALITIES } from '../ai/aiController.js';
 import { settings, saveSettings, getPB, getTrackRecord, isTouch } from '../core/settings.js';
 import { formatTime, ordinal } from '../core/utils.js';
@@ -19,6 +20,7 @@ export class Menus {
       race: RACES[settings.lastRace] ? settings.lastRace : 'r100',
       time: TIMES_OF_DAY[settings.lastTime] ? settings.lastTime : 'day',
       diff: DIFFICULTY[settings.lastDifficulty] ? settings.lastDifficulty : 'normal',
+      venue: VENUES[settings.lastVenue] ? settings.lastVenue : 'featherfield',
     };
     document.body.classList.toggle('no-touch', !isTouch);
     document.addEventListener('click', (e) => {
@@ -28,6 +30,12 @@ export class Menus {
       this.action(b.dataset.action, b);
     });
     this.buildSeg('race-pick', RACE_LIST.map((r) => [r.id, r.short]), () => this.sel.race, (v) => { this.sel.race = v; this.refreshDetail(); });
+    const SHORT = { featherfield: 'Featherfield', meadowbrook: 'Meadowbrook', hollowhills: 'Hollow Hills', dunevalley: 'Dune Valley', aurora: 'Aurora Arena', grandaviary: 'Grand Aviary' };
+    this.buildSeg('venue-pick', VENUE_LIST.map((v) => [v.id, `${v.icon} ${SHORT[v.id] || v.name}`]), () => this.sel.venue, (v) => {
+      this.sel.venue = v;
+      this.refreshDetail();
+      this.game.setVenue(v);
+    });
     this.buildSeg('time-pick', Object.values(TIMES_OF_DAY).map((t) => [t.id, t.name]), () => this.sel.time, (v) => { this.sel.time = v; this.game.previewTime(v); });
     this.buildSeg('diff-pick', Object.values(DIFFICULTY).map((d) => [d.id, d.name]), () => this.sel.diff, (v) => { this.sel.diff = v; });
   }
@@ -42,6 +50,14 @@ export class Menus {
 
   hideAll() {
     this.show(null);
+  }
+
+  // "Travelling to …" card shown while a venue is being built.
+  travelCard(text, show) {
+    const el = $('travel-card');
+    if (!el) return;
+    if (show) el.querySelector('span').textContent = text;
+    el.classList.toggle('show', !!show);
   }
 
   updateCareerBadge() {
@@ -88,9 +104,10 @@ export class Menus {
       case 'start':
         if (this.mode === 'collection') { this.openSetup('race'); break; }
         settings.lastBird = this.sel.bird; settings.lastRace = this.sel.race; settings.lastTime = this.sel.time; settings.lastDifficulty = this.sel.diff;
+        settings.lastVenue = this.sel.venue;
         saveSettings();
         this.hideAll();
-        g.startRace({ bird: this.sel.bird, race: this.sel.race, time: this.sel.time, difficulty: this.sel.diff });
+        g.startRace({ bird: this.sel.bird, race: this.sel.race, time: this.sel.time, difficulty: this.sel.diff, venue: this.sel.venue });
         break;
       case 'resume': g.resume(); break;
       case 'restart': this.hideAll(); g.restartRace(); break;
@@ -111,7 +128,8 @@ export class Menus {
     this.refreshDetail();
     this.show('setup');
     this.game.previewBird(this.sel.bird);
-    this.game.previewTime(this.sel.time);
+    if (mode === 'race') this.game.setVenue(this.sel.venue).then(() => this.game.previewTime(this.sel.time));
+    else this.game.previewTime(this.sel.time);
   }
 
   buildBirdList() {
@@ -159,7 +177,10 @@ export class Menus {
       <div class="pbs">${pbs}</div>`;
     const rc = RACES[this.sel.race];
     const rec = getTrackRecord(rc.id);
-    $('race-tip').innerHTML = `${rc.tip}${rec ? `<br><b style="color:#ffc93c">Stadium record: ${formatTime(rec.time)} — ${rec.name}</b>` : ''}`;
+    const ven = VENUES[this.sel.venue];
+    const surf = { tartan: 'rubber track', grass: 'grass track (slower, slippery)', clay: 'clay track (a bit slippery)', cinder: 'cinder track (a bit slower)' }[ven.track.kind];
+    $('race-tip').innerHTML = `${rc.tip}<br><span style="color:#cfe0ff">${ven.icon} ${ven.name}: ${surf}.</span>${rec ? `<br><b style="color:#ffc93c">Record: ${formatTime(rec.time)} — ${rec.name}</b>` : ''}`;
+    $('time-pick').classList.toggle('disabled', !!ven.indoor);
     this.refreshSegs();
   }
 
@@ -181,7 +202,7 @@ export class Menus {
   }
 
   refreshSegs() {
-    for (const id of ['race-pick', 'time-pick', 'diff-pick']) {
+    for (const id of ['race-pick', 'time-pick', 'diff-pick', 'venue-pick']) {
       const el = $(id);
       if (!el || !el._get) continue;
       const v = el._get();

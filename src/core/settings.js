@@ -24,6 +24,7 @@ const defaults = {
   lastBird: 'abbas',
   lastRace: 'r100',
   lastTime: 'day',
+  lastVenue: 'featherfield',
   lastDifficulty: 'normal',
 };
 

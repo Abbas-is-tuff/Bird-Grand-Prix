@@ -107,13 +107,114 @@ export function grassTextures() {
   return cache.grass;
 }
 
-export function groundTexture() {
-  if (cache.ground) return cache.ground;
+const GROUND_COLORS = { grass: [88, 128, 60], meadow: [104, 142, 66], sand: [214, 178, 122], floor: [58, 60, 70] };
+
+export function groundTexture(kind = 'grass') {
+  const key = 'ground-' + kind;
+  if (cache[key]) return cache[key];
   const c = canvas(256, 256);
   const ctx = c.getContext('2d');
-  grain(ctx, 256, 256, [88, 128, 60], 34, 31);
-  cache.ground = toTexture(c, { repeat: [90, 90] });
-  return cache.ground;
+  grain(ctx, 256, 256, GROUND_COLORS[kind] || GROUND_COLORS.grass, kind === 'sand' ? 22 : 34, 31);
+  if (kind === 'sand') {
+    // wind ripples
+    ctx.strokeStyle = 'rgba(160,120,70,0.25)';
+    for (let y = 0; y < 256; y += 9) {
+      ctx.beginPath();
+      for (let x = 0; x <= 256; x += 8) ctx.lineTo(x, y + Math.sin(x * 0.08 + y) * 3);
+      ctx.stroke();
+    }
+  }
+  cache[key] = toTexture(c, { repeat: [90, 90] });
+  return cache[key];
+}
+
+// Running surface for each venue: tartan (any colour), grass, clay or cinder.
+export function trackTextures(spec) {
+  const key = 'track-' + spec.kind + spec.color.join(',');
+  if (cache[key]) return cache[key];
+  const w = 512;
+  const c = canvas(w, w);
+  const ctx = c.getContext('2d');
+  const [r, g, b] = spec.color;
+  const rng = mulberry32(17);
+  if (spec.kind === 'grass') {
+    grain(ctx, w, w, [r, g, b], 34, 12);
+    for (let i = 0; i < 9000; i++) {
+      const v = 70 + rng() * 110;
+      ctx.strokeStyle = `rgba(${v * 0.55},${v},${v * 0.35},0.5)`;
+      const x = rng() * w, y = rng() * w;
+      ctx.beginPath();
+      ctx.moveTo(x, y);
+      ctx.lineTo(x + (rng() - 0.5) * 3, y - 2 - rng() * 4);
+      ctx.stroke();
+    }
+    // worn patches where birds run
+    for (let i = 0; i < 40; i++) {
+      ctx.fillStyle = `rgba(120,100,60,${0.05 + rng() * 0.08})`;
+      ctx.beginPath();
+      ctx.ellipse(rng() * w, rng() * w, 10 + rng() * 30, 6 + rng() * 14, rng() * 3, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  } else {
+    grain(ctx, w, w, [r, g, b], spec.kind === 'tartan' ? 26 : 40, 11, 0.08);
+    const n = spec.kind === 'tartan' ? 2600 : 5200;
+    for (let i = 0; i < n; i++) {
+      const v = rng();
+      ctx.fillStyle = v < 0.5 ? `rgba(${r * 0.6},${g * 0.6},${b * 0.6},0.55)` : `rgba(${Math.min(255, r * 1.2)},${Math.min(255, g * 1.25)},${Math.min(255, b * 1.25)},0.35)`;
+      const rad = 0.6 + rng() * (spec.kind === 'tartan' ? 1.4 : 2.2);
+      ctx.beginPath();
+      ctx.arc(rng() * w, rng() * w, rad, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+  const bc = canvas(256, 256);
+  grain(bc.getContext('2d'), 256, 256, [128, 128, 128], spec.kind === 'tartan' ? 90 : 130, 23, 0.15);
+  cache[key] = {
+    map: toTexture(c, { repeat: [0.25, 0.25] }),
+    bump: toTexture(bc, { srgb: false, repeat: [0.5, 0.5] }),
+  };
+  return cache[key];
+}
+
+// Infield (inside the track): mowed stripes, meadow, desert sand or indoor turf.
+export function infieldTexture(kind) {
+  const key = 'infield-' + kind;
+  if (cache[key]) return cache[key];
+  const W = 1024, H = 512;
+  const c = canvas(W, H);
+  const ctx = c.getContext('2d');
+  const rng = mulberry32(78);
+  if (kind === 'sand') {
+    grain(ctx, W, H, [218, 182, 128], 24, 5);
+    for (let i = 0; i < 160; i++) {
+      ctx.fillStyle = `rgba(${110 + rng() * 40},${120 + rng() * 40},${60},${0.25 + rng() * 0.3})`;
+      ctx.beginPath();
+      ctx.ellipse(rng() * W, rng() * H, 4 + rng() * 14, 3 + rng() * 8, rng() * 3, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  } else {
+    const pal = {
+      stripes: ['#4f8a33', '#5c9a3b'], meadow: ['#6a9a44', '#73a24a'], turf: ['#2f7a3a', '#358541'],
+    }[kind] || ['#4f8a33', '#5c9a3b'];
+    const stripes = kind === 'meadow' ? 7 : 14;
+    for (let i = 0; i < stripes; i++) {
+      ctx.fillStyle = pal[i % 2];
+      ctx.fillRect((i * W) / stripes, 0, W / stripes + 1, H);
+    }
+    for (let i = 0; i < 26000; i++) {
+      const g = 90 + rng() * 90;
+      ctx.fillStyle = `rgba(${g * 0.45},${g},${g * 0.35},${0.12 + rng() * 0.2})`;
+      ctx.fillRect(rng() * W, rng() * H, 1 + rng() * 2, 1 + rng() * 3);
+    }
+    if (kind === 'meadow') {
+      for (let i = 0; i < 900; i++) {
+        ctx.fillStyle = ['#ffffff', '#ffe060', '#e8a0d0'][i % 3];
+        ctx.fillRect(rng() * W, rng() * H, 2, 2);
+      }
+    }
+  }
+  cache[key] = toTexture(c, { repeat: [1, 1], wrap: false });
+  return cache[key];
 }
 
 export function concreteTexture() {

@@ -6,8 +6,10 @@ import { RACES } from '../data/races.js';
 import { clamp, rand, shuffle, pick } from '../core/utils.js';
 import {
   TIERS, TRAINING, EXTRAS, SEASON_WEEKS, START_MONEY, TRAINING_SLOTS, PRIZE_SPLIT, RP_TABLE,
-  RACE_FATIGUE, SPONSOR_NAMES, MILESTONES,
+  RACE_FATIGUE, SPONSOR_NAMES, MILESTONES, TIER_VENUES, CUP_VENUES, TRAVEL_MODES, travelScale,
+  HOTEL_PER_WEEK, HOME_REST_BONUS, JET_LAG_PENALTY, HOME_CROWD_BONUS, TRAVEL_EVENTS, KM_PER_UNIT,
 } from './careerData.js';
+import { VENUES, HOME_VENUE, venueDistance } from '../data/venues.js';
 
 const KEY = 'bgp.career.v1';
 
@@ -39,6 +41,8 @@ export class Career {
       trainingLog: [], history: [], trophies: [], milestones: [], news: [],
       stats: { races: 0, wins: 0, podiums: 0, earnings: 0, dnf: 0, dq: 0, best: {}, winsBy: {}, seasons: 1, trainingSessions: 0 },
       standings: {}, sponsor: null, offers: [], events: [], seasonLog: [],
+      location: HOME_VENUE, jetLag: 0, travelLog: [],
+      visited: { [HOME_VENUE]: { visits: 1, races: 0, wins: 0, best: {} } },
     });
     c.startSeason();
     c.addNews(`${c.bird.name} signs up for the Beginner circuit. A star is born?`);
@@ -52,7 +56,16 @@ export class Career {
       if (!raw) return null;
       const d = JSON.parse(raw);
       if (!d || d.v !== 1 || !BIRDS[d.birdId]) return null;
-      return new Career(d);
+      const c = new Career(d);
+      // careers saved before travel existed: start them at home
+      if (!c.location || !VENUES[c.location]) {
+        c.location = HOME_VENUE;
+        c.jetLag = 0;
+        c.travelLog = [];
+        c.visited = { [HOME_VENUE]: { visits: 1, races: 0, wins: 0, best: {} } };
+        for (const e of c.events || []) e.venue ||= HOME_VENUE;
+      }
+      return c;
     } catch (e) {
       return null;
     }
@@ -92,17 +105,31 @@ export class Career {
   generateEvents() {
     const t = this.tier;
     if (this.isFinalWeek) {
-      this.events = [this.makeEvent(t.cup, pick(t.races), pick(t.times), true, 0)];
+      const venue = CUP_VENUES[this.tierIndex];
+      this.events = [this.makeEvent(t.cup, pick(t.races), this.timeFor(venue), true, 0, venue)];
       return;
     }
     const races = shuffle(t.races);
-    this.events = [0, 1].map((i) => this.makeEvent(
+    // one event close to where you are now, one somewhere else on the circuit
+    const list = TIER_VENUES[this.tierIndex];
+    const near = list.slice().sort((a, b) => venueDistance(this.location, a) - venueDistance(this.location, b));
+    const v0 = list.includes(this.location) && Math.random() < 0.7 ? this.location : near[Math.random() < 0.6 ? 0 : 1];
+    const others = list.filter((x) => x !== v0);
+    const v1 = others[Math.floor(Math.random() * others.length)];
+    this.events = [v0, v1].map((venue, i) => this.makeEvent(
       t.events[(this.week * 2 + i + this.season) % t.events.length],
-      races[i % races.length], pick(t.times), false, i,
+      races[i % races.length], this.timeFor(venue), false, i, venue,
     ));
   }
 
-  makeEvent(name, raceId, time, final, i) {
+  timeFor(venueId) {
+    const v = VENUES[venueId];
+    if (v.indoor) return 'indoor';
+    const ok = this.tier.times.filter((x) => v.times.includes(x));
+    return pick(ok.length ? ok : ['day']);
+  }
+
+  makeEvent(name, raceId, time, final, i, venue = HOME_VENUE) {
     const t = this.tier;
     const others = ROSTER.filter((b) => b.id !== this.birdId).map((b) => b.id);
     let field;
@@ -114,10 +141,10 @@ export class Career {
     const [lo, hi] = t.oppSpeed;
     const oppSpeed = field.map((id) => +clamp(rand(lo, hi) + (birdStrength(id) - 55) / 2500, lo - 0.01, hi + 0.01).toFixed(4));
     const distMul = raceId === 'r800' ? 1.25 : raceId === 'r400' ? 1.12 : 1;
-    const top = t.prize * (final ? 3 : 1) * distMul;
+    const top = t.prize * (final ? 3 : 1) * distMul * VENUES[venue].prestige;
     return {
       id: `${this.season}-${this.week}-${i}`,
-      name, raceId, time, final,
+      name, raceId, time, final, venue,
       entry: final ? 0 : t.entry,
       prizes: PRIZE_SPLIT.map((f) => Math.round((top * f) / 5) * 5),
       rp: RP_TABLE.map((x) => x * t.rpMult * (final ? 2 : 1)),
@@ -207,9 +234,10 @@ export class Career {
 
   // What training + tiredness do to your bird on race day.
   raceModifiers() {
-    const pen = Math.max(0, this.fatigue - 35) * 0.0012;
+    const pen = Math.max(0, this.fatigue - 35) * 0.0012 + (this.jetLag > 0 ? JET_LAG_PENALTY : 0);
+    const home = this.location === HOME_VENUE ? HOME_CROWD_BONUS : 0;
     return {
-      topSpeed: this.bonus.topSpeed - pen,
+      topSpeed: this.bonus.topSpeed - pen + home,
       accel: this.bonus.accel - pen,
       staminaCap: this.bonus.staminaCap,
       grip: this.bonus.grip,
@@ -226,6 +254,7 @@ export class Career {
     const ev = this.events.find((e) => e.id === eventId);
     if (!ev) return { error: 'Event not found.' };
     if (!this.canEnter(ev)) return { error: `You need $${ev.entry} to enter.` };
+    if (ev.venue && ev.venue !== this.location) return { error: `This race is in ${VENUES[ev.venue].city}. Travel there first.` };
     this.money -= ev.entry;
     this.pendingEvent = ev.id;
     this.save();
@@ -292,6 +321,11 @@ export class Career {
       if (place && place <= 3) this.sponsor.progress++;
     }
     this.fatigue = clamp(this.fatigue + (RACE_FATIGUE[ev.raceId] || 12), 0, 100);
+    this.jetLag = 0;
+    const vs = this.visit(ev.venue || this.location);
+    vs.races++;
+    if (place === 1) vs.wins++;
+    if (place && (vs.best[ev.raceId] == null || p.time < vs.best[ev.raceId])) vs.best[ev.raceId] = p.time;
 
     // trophies for the championship final
     if (ev.final && place && place <= 3) {
@@ -299,7 +333,7 @@ export class Career {
       this.addTrophy({ id: `cup-${this.season}`, name: `${ev.name} — ${medal}`, icon: ['🏆', '🥈', '🥉'][place - 1], tier: t.id }, sum);
     }
     this.history.unshift({
-      season: this.season, week: this.week, event: ev.name, raceId: ev.raceId, place,
+      season: this.season, week: this.week, event: ev.name, raceId: ev.raceId, place, venue: ev.venue,
       time: p?.time ?? null, prize: sum.prize, rp: sum.rp, dq: p?.dq || null, final: ev.final,
     });
     this.history = this.history.slice(0, 60);
@@ -317,6 +351,86 @@ export class Career {
     this.checkMilestones(sum);
     this.save();
     return sum;
+  }
+
+  // ------------------------------------------------------------------ travel
+  visit(venueId) {
+    this.visited[venueId] ||= { visits: 0, races: 0, wins: 0, best: {} };
+    return this.visited[venueId];
+  }
+
+  distanceTo(venueId) {
+    return venueDistance(this.location, venueId);
+  }
+
+  kmTo(venueId) {
+    return Math.round((this.distanceTo(venueId) * KM_PER_UNIT) / 10) * 10;
+  }
+
+  travelOptions(venueId) {
+    const d = this.distanceTo(venueId);
+    const scale = travelScale(this.tierIndex);
+    const opts = Object.values(TRAVEL_MODES).map((m) => {
+      const cost = Math.round((m.cost(d) * scale) / 5) * 5;
+      const o = { mode: m.id, icon: m.icon, name: m.name, cost, slots: m.slots(d), fatigue: Math.round(m.fatigue(d)), jetLag: m.jetLag(d), ok: true, why: '' };
+      if (d > m.maxDist) { o.ok = false; o.why = 'too far'; }
+      else if (this.money < cost) { o.ok = false; o.why = `need $${cost}`; }
+      return o;
+    });
+    // broke and stranded away from home? the club pays for the cheapest way back
+    if (venueId === HOME_VENUE && !opts.some((o) => o.ok)) {
+      const o = opts.find((x) => x.why !== 'too far');
+      if (o) Object.assign(o, { cost: 0, ok: true, why: '', free: true });
+    }
+    return opts;
+  }
+
+  travel(venueId, modeId) {
+    if (!VENUES[venueId]) return { error: 'Unknown place.' };
+    if (venueId === this.location) return { error: 'You are already here.' };
+    const o = this.travelOptions(venueId).find((x) => x.mode === modeId);
+    if (!o || !o.ok) return { error: o?.why === 'too far' ? `Too far to go by ${o.name.toLowerCase()}.` : `Not enough money for the ${o?.name.toLowerCase() || 'trip'}.` };
+    const from = this.location;
+    this.money -= o.cost;
+    // travelling eats training time; if there's no time left the trip is extra tiring
+    const missing = Math.max(0, o.slots - this.slotsLeft);
+    this.slotsUsed = Math.min(this.slots, this.slotsUsed + o.slots);
+    this.fatigue = clamp(this.fatigue + o.fatigue + missing * 6, 0, 100);
+    if (o.jetLag) this.jetLag = 1;
+    this.location = venueId;
+    const v = this.visit(venueId);
+    const firstVisit = v.visits === 0;
+    v.visits++;
+    this.stats.travelKm = (this.stats.travelKm || 0) + this.kmBetween(from, venueId);
+    if (modeId === 'plane') this.stats.flights = (this.stats.flights || 0) + 1;
+    // something might happen on the way
+    let event = null;
+    if (Math.random() < 0.35) {
+      const pool = TRAVEL_EVENTS.filter((e) => e.modes.includes(modeId));
+      const e = pool[Math.floor(Math.random() * pool.length)];
+      if (e) {
+        event = { text: e.text };
+        if (e.fatigue) this.fatigue = clamp(this.fatigue + e.fatigue, 0, 100);
+        if (e.money) {
+          const m = Math.round(e.money * travelScale(this.tierIndex));
+          this.money = Math.max(0, this.money + m);
+          if (m > 0) this.stats.earnings += m;
+          event.money = m;
+        }
+        event.fatigue = e.fatigue || 0;
+      }
+    }
+    this.travelLog.unshift({ season: this.season, week: this.week, from, to: venueId, mode: modeId, cost: o.cost, event: event?.text || null });
+    this.travelLog = this.travelLog.slice(0, 30);
+    this.addNews(`${this.bird.name} travels by ${o.name.toLowerCase()} to ${VENUES[venueId].city}.${firstVisit ? ' First visit!' : ''}`);
+    const sum = { newTrophies: [] };
+    this.checkMilestones(sum);
+    this.save();
+    return { ok: true, option: o, event, firstVisit, trophies: sum.newTrophies };
+  }
+
+  kmBetween(a, b) {
+    return Math.round((venueDistance(a, b) * KM_PER_UNIT) / 10) * 10;
   }
 
   simulatedPlace(id) {
@@ -339,6 +453,15 @@ export class Career {
     }
     // recovery + slow loss of training if you stop training
     this.fatigue = clamp(this.fatigue - 12, 0, 100);
+    if (this.location === HOME_VENUE) {
+      this.fatigue = clamp(this.fatigue - HOME_REST_BONUS, 0, 100);
+      sum.lines.push(`A week sleeping in your own nest at home: +${HOME_REST_BONUS} freshness`);
+    } else {
+      const hotel = Math.round(HOTEL_PER_WEEK * travelScale(this.tierIndex));
+      this.money = Math.max(0, this.money - hotel);
+      sum.lines.push(`Hotel in ${VENUES[this.location].city}: -$${hotel}`);
+    }
+    if (this.jetLag > 0) this.jetLag--;
     for (const k in this.bonus) this.bonus[k] *= 0.99;
     // sponsor pay and contract check
     if (this.sponsor) {
@@ -452,4 +575,4 @@ export class Career {
   }
 }
 
-export { TIERS, TRAINING, EXTRAS, SEASON_WEEKS };
+export { TIERS, TRAINING, EXTRAS, SEASON_WEEKS, TRAVEL_MODES };

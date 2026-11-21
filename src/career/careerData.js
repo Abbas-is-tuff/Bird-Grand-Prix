@@ -17,7 +17,7 @@ export const TIERS = [
     blurb: 'Small local competitions. Learn the ropes.',
     oppSpeed: [0.9, 0.935], entry: 0, prize: 200, rpMult: 1, costMult: 1,
     races: ['r100', 'r200'], times: ['day'],
-    events: ['Featherfield Local Meet', 'Seedco Sprint Series', 'Sunday Club Races', 'Park Run Open'],
+    events: ['Local Club Meet', 'Seedco Sprint Series', 'Sunday Club Races', 'Park Run Open'],
     cup: 'Beginner Cup Final',
   },
   {
@@ -90,5 +90,43 @@ export const MILESTONES = [
   { id: 'money-1k', name: '$1,000 earned', icon: '💵', test: (c) => c.stats.earnings >= 1000 },
   { id: 'money-10k', name: '$10,000 earned', icon: '💰', test: (c) => c.stats.earnings >= 10000 },
   { id: 'money-100k', name: '$100,000 earned', icon: '🏦', test: (c) => c.stats.earnings >= 100000 },
+  { id: 'traveller', name: 'World traveller (raced at every venue)', icon: '🧳', test: (c) => Object.values(c.visited || {}).filter((v) => v.races > 0).length >= 6 },
+  { id: 'first-flight', name: 'First flight', icon: '✈️', test: (c) => (c.stats.flights || 0) >= 1 },
   { id: 'all-distances', name: 'All-rounder (won every distance)', icon: '🎯', test: (c) => ['r100', 'r200', 'r400', 'r800'].every((r) => c.stats.winsBy?.[r] > 0) },
+];
+
+// ---------------------------------------------------------------- travel
+// Venues where each level races (see data/venues.js). The final is always at the cup venue.
+export const TIER_VENUES = [
+  ['featherfield', 'meadowbrook', 'hollowhills'],
+  ['featherfield', 'meadowbrook', 'hollowhills', 'dunevalley'],
+  ['featherfield', 'hollowhills', 'dunevalley', 'aurora', 'meadowbrook'],
+  ['featherfield', 'dunevalley', 'aurora', 'grandaviary', 'meadowbrook', 'hollowhills'],
+];
+export const CUP_VENUES = ['featherfield', 'dunevalley', 'aurora', 'grandaviary'];
+export const KM_PER_UNIT = 30; // map distance -> kilometres shown to the player
+
+// How you can get around. d = map distance. Costs are multiplied by the travel scale of your level.
+export const TRAVEL_MODES = {
+  bus: { id: 'bus', icon: '🚌', name: 'Bus', maxDist: 24, cost: (d) => 8 + d * 1.1, slots: (d) => (d > 12 ? 2 : 1), fatigue: (d) => 5 + d * 0.45, jetLag: () => false },
+  train: { id: 'train', icon: '🚆', name: 'Train', maxDist: 48, cost: (d) => 18 + d * 2.1, slots: () => 1, fatigue: (d) => 3 + d * 0.22, jetLag: () => false },
+  plane: { id: 'plane', icon: '✈️', name: 'Plane', maxDist: 999, cost: (d) => 65 + d * 4.2, slots: (d) => (d > 40 ? 1 : 0), fatigue: (d) => 3 + d * 0.06, jetLag: (d) => d > 40 },
+};
+export const travelScale = (tierIndex) => 1 + tierIndex * 0.8;
+export const HOTEL_PER_WEEK = 15; // x travel scale, paid at the end of each week away from home
+export const HOME_REST_BONUS = 6; // extra freshness for a week spent at home
+export const JET_LAG_PENALTY = 0.03; // -3% speed and acceleration in your next race
+export const HOME_CROWD_BONUS = 0.015; // +1.5% top speed racing at home
+
+// Little things that happen on the road (money is multiplied by the travel scale).
+export const TRAVEL_EVENTS = [
+  { modes: ['plane'], text: 'Flight delayed! A long night at the airport.', fatigue: 7 },
+  { modes: ['plane'], text: 'Upgraded to a comfy seat — slept the whole flight.', fatigue: -6 },
+  { modes: ['plane'], text: 'Lost luggage… you had to buy new racing bands.', money: -25 },
+  { modes: ['train'], text: 'A fan recognised you on the train and shared some millet.', money: 20 },
+  { modes: ['train'], text: 'Quiet carriage and a lovely long nap.', fatigue: -5 },
+  { modes: ['bus'], text: 'Bumpy roads — your bird barely slept.', fatigue: 6 },
+  { modes: ['bus'], text: 'The bus broke down and you walked the last part.', fatigue: 8 },
+  { modes: ['bus', 'train', 'plane'], text: 'Local radio interview when you arrived. New fans!', money: 35 },
+  { modes: ['bus', 'train', 'plane'], text: 'Your hotel has a bird bath with a view. Bliss.', fatigue: -4 },
 ];

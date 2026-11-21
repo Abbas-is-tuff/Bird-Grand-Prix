@@ -6,7 +6,8 @@ import { Environment } from '../world/environment.js';
 import { TrackMesh } from '../world/trackMesh.js';
 import { Stadium, crowdUniforms } from '../world/stadium.js';
 import { setMaxAnisotropy } from '../world/textures.js';
-import { T, laneCenter, surfaceAt } from '../world/track.js';
+import { T, laneCenter, surfaceAt, setSurface } from '../world/track.js';
+import { VENUES, HOME_VENUE } from '../data/venues.js';
 import { CameraDirector } from '../camera/cameraDirector.js';
 import { Input } from '../input/input.js';
 import { AudioEngine } from '../audio/audio.js';
@@ -67,8 +68,8 @@ export class Game {
     this.track = new TrackMesh(scene);
     this.setLoad(0.35, 'Building the grandstands…');
     await nextFrame();
-    this.stadium = new Stadium(scene, q);
-    this.env.apply(settings.lastTime || 'day', this.stadium);
+    this.timeId = settings.lastTime || 'day';
+    this.buildVenue(VENUES[settings.lastVenue] ? settings.lastVenue : HOME_VENUE);
     this.setLoad(0.6, 'Waking up the birds…');
     await nextFrame();
 
@@ -131,8 +132,33 @@ export class Game {
     this.preview = { id, model, anim, x, z, h: Math.PI / 2 + 0.3, size: model.species.size };
   }
 
+  // Build the scenery, track surface and lighting for a venue (replaces the old one).
+  buildVenue(id) {
+    const v = VENUES[id] || VENUES[HOME_VENUE];
+    if (this.stadium) this.stadium.dispose();
+    this.stadium = new Stadium(this.scene, this.quality, v);
+    this.track.setVenue(v);
+    setSurface(v.track, v.ground);
+    this.venueId = v.id;
+    this.venue = v;
+    this.env.apply(this.timeId, this.stadium, v);
+  }
+
+  // Switch venue with a short "travelling" card while the new place is built.
+  async setVenue(id, text) {
+    if (this.venueId === id && this.stadium) return;
+    const v = VENUES[id];
+    this.menus.travelCard(text || `${v.icon} ${v.name}`, true);
+    await nextFrame();
+    await nextFrame();
+    this.buildVenue(id);
+    await nextFrame();
+    this.menus.travelCard(null, false);
+  }
+
   previewTime(id) {
-    this.env.apply(id, this.stadium);
+    this.timeId = id;
+    this.env.apply(id, this.stadium, this.venue);
   }
 
   toMenu() {
@@ -145,11 +171,11 @@ export class Game {
   }
 
   // ---------------------------------------------------------------- race lifecycle
-  startCareerRace(ev) {
+  async startCareerRace(ev) {
     const c = this.career;
     this.menus.hideAll();
-    this.startRace({
-      bird: c.birdId, race: ev.raceId, time: ev.time,
+    await this.startRace({
+      bird: c.birdId, race: ev.raceId, time: ev.time, venue: ev.venue,
       difficulty: ['easy', 'normal', 'hard', 'hard'][c.tierIndex],
       opponents: ev.field.slice(), oppSpeed: ev.oppSpeed.slice(),
       playerBonus: c.raceModifiers(), careerEventId: ev.id,
@@ -157,11 +183,11 @@ export class Game {
   }
 
   // Training: play the drill for this session on the track.
-  startDrill(type, coach) {
+  async startDrill(type, coach) {
     const c = this.career;
     this.menus.hideAll();
-    this.startRace({
-      bird: c.birdId, race: DRILLS[type].id, raceDef: DRILLS[type], time: 'day', difficulty: 'solo',
+    await this.startRace({
+      bird: c.birdId, race: DRILLS[type].id, raceDef: DRILLS[type], time: 'day', difficulty: 'solo', venue: c.location,
       opponents: [], playerBonus: c.raceModifiers(), drill: type, coach,
     });
     this.race.skipIntro();
@@ -177,8 +203,13 @@ export class Game {
     this.lastCareerSum = null;
   }
 
-  startRace(opts) {
+  async startRace(opts) {
     this.lastOpts = opts;
+    if (opts.venue && opts.venue !== this.venueId) {
+      this.disposeRace();
+      this.hud.show(false);
+      await this.setVenue(opts.venue, `${VENUES[opts.venue].icon} Travelling to ${VENUES[opts.venue].name}…`);
+    }
     this.careerRecorded = false;
     if (opts.difficulty === 'solo') opts.opponents = [];
     if (!opts.opponents) {
@@ -186,13 +217,15 @@ export class Game {
     }
     this.disposeRace();
     if (this.preview) this.preview.model.root.visible = false;
-    this.env.apply(opts.time, this.stadium);
+    this.timeId = opts.time || this.timeId;
+    this.env.apply(this.timeId, this.stadium, this.venue);
     const race = new Race({
       scene: this.scene, input: this.input, raceId: opts.raceDef || opts.race, playerBirdId: opts.bird,
       opponentIds: opts.opponents, difficulty: opts.difficulty, oppSpeed: opts.oppSpeed || null, playerBonus: opts.playerBonus || null,
       drill: opts.drill ? DRILLS[opts.drill] : null,
     });
     this.race = race;
+    race.venue = this.venue;
     this.track.setRaceMarkings(race.def, race.lanesUsed, (k) => race.startPoint(k));
     this.hud.reset(race);
     this.hud.show(true);
@@ -244,7 +277,7 @@ export class Game {
       if (racer.isPlayer) this.hud.flashBarrier();
     });
     race.on('jump', (r) => this.audio.flap(0.18));
-    this.onPhase('intro');
+    race.emit('phase', 'intro');
   }
 
   onPhase(p) {
@@ -266,7 +299,7 @@ export class Game {
   restartRace() {
     if (!this.lastOpts || this.lastOpts.careerEventId || this.lastOpts.drill) return;
     this.menus.hideAll();
-    this.startRace(Object.assign({}, this.lastOpts));
+    this.startRace(Object.assign({}, this.lastOpts, { venue: this.venueId }));
   }
 
   quitRace(keepPreview = false) {

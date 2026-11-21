@@ -1,6 +1,7 @@
 // Career screens: start a career, then the hub with tabs (Home, Train, Race, Standings, Records, Sponsors).
 import { Career, TIERS, TRAINING, EXTRAS, SEASON_WEEKS } from '../career/career.js';
 import { DRILLS } from '../career/drills.js';
+import { VENUES, VENUE_LIST, HOME_VENUE } from '../data/venues.js';
 import { ROSTER, BIRDS } from '../data/roster.js';
 import { SPECIES, ratings } from '../data/species.js';
 import { RACES, TIMES_OF_DAY } from '../data/races.js';
@@ -9,11 +10,13 @@ import { formatTime, ordinal } from '../core/utils.js';
 const $ = (id) => document.getElementById(id);
 const money = (n) => '$' + Math.round(n).toLocaleString('en-US');
 const pct = (x) => (x >= 0 ? '+' : '') + (x * 100).toFixed(1) + '%';
-const TIME_ICON = { day: '☀️', sunset: '🌇', night: '🌙' };
+const TIME_ICON = { day: '☀️', sunset: '🌇', night: '🌙', indoor: '💡' };
+const TRAVEL_ICON = { bus: '🚌', train: '🚆', plane: '✈️' };
 
 const TABS = [
-  ['home', 'HOME'], ['train', 'TRAIN'], ['race', 'RACE'], ['standings', 'STANDINGS'], ['records', 'RECORDS'], ['sponsors', 'SPONSORS'],
+  ['home', 'HOME'], ['train', 'TRAIN'], ['race', 'RACE'], ['travel', 'TRAVEL'], ['standings', 'STANDINGS'], ['records', 'RECORDS'], ['sponsors', 'SPONSORS'],
 ];
+const SURFACE = { tartan: 'Rubber track', grass: 'Grass track — slower and slippery', clay: 'Clay track — a little slippery', cinder: 'Cinder track — a little slower' };
 
 export class CareerUI {
   constructor(game) {
@@ -52,6 +55,7 @@ export class CareerUI {
     this.game.menus.show('career');
     const c = this.career;
     this.game.previewBird(c ? c.birdId : this.startPick);
+    if (c) this.game.setVenue(c.location);
   }
 
   toast(t) {
@@ -109,6 +113,44 @@ export class CareerUI {
         g.startCareerRace(r.event);
         break;
       }
+      case 'mapsel':
+        this.mapSel = v;
+        this.render();
+        break;
+      case 'travel': {
+        const [venue, mode] = v.split(':');
+        const r = c.travel(venue, mode);
+        if (r.error) {
+          this.toast(r.error);
+          break;
+        }
+        this.afterTravel(r, venue);
+        this.render();
+        break;
+      }
+      case 'travel-enter': {
+        const [evId, mode] = v.split(':');
+        const ev = c.events.find((e) => e.id === evId);
+        if (!ev) break;
+        if (!c.canEnter(ev)) {
+          this.toast(`You need $${ev.entry} to enter.`);
+          break;
+        }
+        const r = c.travel(ev.venue, mode);
+        if (r.error) {
+          this.toast(r.error);
+          break;
+        }
+        this.afterTravel(r, ev.venue, true);
+        const en = c.enter(ev.id);
+        if (en.error) {
+          this.toast(en.error);
+          this.render();
+          break;
+        }
+        g.startCareerRace(en.event);
+        break;
+      }
       case 'skip': {
         const sum = c.skipWeek();
         this.afterWeek(sum);
@@ -142,6 +184,17 @@ export class CareerUI {
     }
   }
 
+  afterTravel(r, venue, quiet = false) {
+    const v = VENUES[venue];
+    const bits = [`${r.option.icon} Arrived in ${v.city}`];
+    if (r.option.jetLag) bits.push('jet lag (−3% next race)');
+    if (r.firstVisit) bits.push('new passport stamp!');
+    if (r.event) bits.push(r.event.text);
+    for (const t of r.trophies || []) bits.push(`${t.icon} ${t.name}`);
+    this.toast(bits.join('  •  '));
+    if (!quiet) this.game.setVenue(venue);
+  }
+
   afterWeek(sum) {
     const msgs = [];
     if (sum.seasonEnd) msgs.push(`Season over: you finished ${ordinal(sum.seasonEnd.pos)}.`);
@@ -155,7 +208,8 @@ export class CareerUI {
     const c = this.career;
     if (!c) return this.renderStart();
     const t = c.tier;
-    $('career-title').innerHTML = `${c.bird.name} <span class="tierbadge" style="background:${t.color}">${t.icon} ${t.name.toUpperCase()}</span><small>Season ${c.season} • Week ${c.week}/${SEASON_WEEKS}</small>`;
+    const here = VENUES[c.location];
+    $('career-title').innerHTML = `${c.bird.name} <span class="tierbadge" style="background:${t.color}">${t.icon} ${t.name.toUpperCase()}</span><small>Season ${c.season} • Week ${c.week}/${SEASON_WEEKS} • 📍 ${here.city}${c.jetLag ? ' • 😵 jet lag' : ''}</small>`;
     $('career-money').textContent = money(c.money);
     $('career-tabs').classList.remove('hidden');
     $('career-tabs').innerHTML = TABS.map(([id, label]) => {
@@ -210,7 +264,7 @@ export class CareerUI {
     const rank = c.playerRank();
     const me = c.standings[c.birdId];
     const sp = c.sponsor;
-    const evs = c.events.map((e) => `${e.final ? '🏆 ' : ''}${e.name} — ${RACES[e.raceId].short}`).join('<br>');
+    const evs = c.events.map((e) => `${e.final ? '🏆 ' : ''}${e.name} — ${RACES[e.raceId].short} • ${VENUES[e.venue].icon} ${VENUES[e.venue].city}${e.venue === c.location ? ' (here)' : ` (${c.kmTo(e.venue)} km away)`}`).join('<br>');
     const nextTier = TIERS[c.tierIndex + 1];
     return `<div class="cgrid">
       <div class="ccard">
@@ -233,6 +287,11 @@ export class CareerUI {
         <h4>${c.isFinalWeek ? 'Championship final this week!' : 'Race day this week'}</h4>
         <div class="muted">${evs}</div>
         <div class="cbtns"><button class="btn primary" data-c="tab" data-v="race">GO TO RACE DAY</button></div>
+      </div>
+      <div class="ccard">
+        <h4>📍 ${VENUES[c.location].name}</h4>
+        <div class="muted">${VENUES[c.location].city}${c.location === HOME_VENUE ? ' — home sweet home. You recover faster here and the home crowd gives you a boost.' : ` — away from home. Hotel costs are paid every week you stay.`}${c.jetLag ? ' <b>Jet lag:</b> −3% in your next race.' : ''}</div>
+        <div class="cbtns"><button class="btn" data-c="tab" data-v="travel">OPEN MAP</button></div>
       </div>
       <div class="ccard">
         <h4>Sponsor</h4>
@@ -303,13 +362,26 @@ export class CareerUI {
     const c = this.career;
     const evCards = c.events.map((e) => {
       const r = RACES[e.raceId];
+      const ven = VENUES[e.venue];
       const field = e.field.map((id) => BIRDS[id].name).join(', ');
       const ok = c.canEnter(e);
+      const here = e.venue === c.location;
+      let buttons;
+      if (here) {
+        buttons = `<button class="btn primary" data-c="enter" data-v="${e.id}" ${ok ? '' : 'disabled'}>${ok ? 'ENTER RACE' : `NEED ${money(e.entry)}`}</button>`;
+      } else {
+        buttons = c.travelOptions(e.venue).filter((o) => o.why !== 'too far').map((o) => {
+          const can = o.ok && ok && c.money >= o.cost + e.entry;
+          return `<button class="btn ${o.mode === 'plane' ? '' : ''}" data-c="travel-enter" data-v="${e.id}:${o.mode}" ${can ? '' : 'disabled'}>${o.icon} ${o.name.toUpperCase()} ${money(o.cost)} & ENTER</button>`;
+        }).join('');
+      }
+      const tripNote = here ? '📍 You are here' : `📍 ${ven.city} — ${c.kmTo(e.venue)} km away. ${c.travelOptions(e.venue).filter((o) => o.why !== 'too far').map((o) => `${o.icon} ${o.slots ? `uses ${o.slots} training session${o.slots > 1 ? 's' : ''}, ` : ''}+${o.fatigue} fatigue${o.jetLag ? ', jet lag' : ''}`).join(' • ')}`;
       return `<div class="ccard evcard ${e.final ? 'gold' : ''}">
         <div class="eh"><h4>${e.final ? '🏆 ' : ''}${e.name}</h4><span class="dist">${r.short}</span></div>
-        <div class="chips"><span>${TIME_ICON[e.time]} ${TIMES_OF_DAY[e.time].name}</span><span>Entry ${e.entry ? money(e.entry) : 'free'}</span><span>1st: ${money(e.prizes[0])} + ${e.rp[0]} RP</span><span>3rd: ${money(e.prizes[2])}</span></div>
-        <div class="muted">Rivals: ${field}${e.final ? '<br>The top birds in the standings. Double ranking points, trophies for the top 3.' : ''}</div>
-        <div class="cbtns"><button class="btn primary" data-c="enter" data-v="${e.id}" ${ok ? '' : 'disabled'}>${ok ? 'ENTER RACE' : `NEED ${money(e.entry)}`}</button></div>
+        <div class="chips"><span>${ven.icon} ${ven.name}</span><span>${TIME_ICON[e.time] || '💡'} ${TIMES_OF_DAY[e.time]?.name || 'Indoor'}</span><span>Entry ${e.entry ? money(e.entry) : 'free'}</span><span>1st: ${money(e.prizes[0])} + ${e.rp[0]} RP</span><span>3rd: ${money(e.prizes[2])}</span></div>
+        <div class="muted">${SURFACE[ven.track.kind]}. Rivals: ${field}${e.final ? '<br>The top birds in the standings. Double ranking points, trophies for the top 3.' : ''}</div>
+        <div class="muted" style="margin-top:4px">${tripNote}</div>
+        <div class="cbtns">${buttons}</div>
       </div>`;
     }).join('');
     const cal = Array.from({ length: SEASON_WEEKS }, (_, i) => {
@@ -321,6 +393,61 @@ export class CareerUI {
       <div class="cgrid">${evCards}</div>
       <div class="cbtns" style="margin-top:10px"><button class="btn" data-c="skip">${c.isFinalWeek ? 'MISS THE FINAL (rest)' : 'SKIP THIS WEEK (rest)'}</button></div>
       <div class="label">SEASON ${c.season} CALENDAR</div><div class="cal">${cal}</div>`;
+  }
+
+  render_travel() {
+    const c = this.career;
+    const evVenues = new Set(c.events.map((e) => e.venue));
+    if (!this.mapSel || !VENUES[this.mapSel]) this.mapSel = [...evVenues].find((v) => v !== c.location) || c.location;
+    const sel = VENUES[this.mapSel];
+    const cur = VENUES[c.location].map;
+    const routes = [...evVenues].filter((v) => v !== c.location).map((v) => {
+      const p = VENUES[v].map;
+      return `<line x1="${cur.x}" y1="${cur.y}" x2="${p.x}" y2="${p.y}" stroke="#ffc93c" stroke-width="0.45" stroke-dasharray="1.4 1" opacity="0.9"/>`;
+    }).join('');
+    const selLine = this.mapSel !== c.location && !evVenues.has(this.mapSel)
+      ? `<line x1="${cur.x}" y1="${cur.y}" x2="${sel.map.x}" y2="${sel.map.y}" stroke="#ffffff" stroke-width="0.35" stroke-dasharray="1 1" opacity="0.7"/>` : '';
+    const pins = VENUE_LIST.map((v) => {
+      const p = v.map;
+      const been = c.visited[v.id]?.visits > 0;
+      const isHere = v.id === c.location;
+      const ev = evVenues.has(v.id);
+      return `<g class="pin" data-c="mapsel" data-v="${v.id}" style="cursor:pointer">
+        <circle cx="${p.x}" cy="${p.y}" r="4.2" fill="transparent"/>
+        ${isHere ? `<circle cx="${p.x}" cy="${p.y}" r="3" fill="none" stroke="#7dff9a" stroke-width="0.5"><animate attributeName="r" values="2;4;2" dur="2s" repeatCount="indefinite"/></circle>` : ''}
+        ${ev ? `<circle cx="${p.x}" cy="${p.y}" r="2.4" fill="none" stroke="#ffc93c" stroke-width="0.45"/>` : ''}
+        <circle cx="${p.x}" cy="${p.y}" r="1.35" fill="${been ? '#ffc93c' : '#ffffff'}" stroke="#0b1324" stroke-width="0.35"/>
+        <text x="${p.x}" y="${p.y - 3.2}" font-size="2.6" text-anchor="middle">${v.icon}</text>
+        <text x="${p.x}" y="${p.y + 4.6}" font-size="2.1" text-anchor="middle" fill="${v.id === this.mapSel ? '#ffc93c' : '#e8eef8'}" font-weight="800" style="paint-order:stroke" stroke="#0b1324" stroke-width="0.5">${v.city}</text>
+      </g>`;
+    }).join('');
+    const map = `<svg class="worldmap" viewBox="0 0 100 60" preserveAspectRatio="xMidYMid meet">
+      <defs><linearGradient id="sea" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#14406e"/><stop offset="1" stop-color="#0b2747"/></linearGradient></defs>
+      <rect width="100" height="60" fill="url(#sea)"/>
+      <path d="M10,14 C14,6 30,4 40,8 C48,11 51,20 47,27 C52,33 49,42 42,46 C34,52 22,53 16,47 C9,41 6,30 9,23 C6,19 7,16 10,14 Z" fill="#3f6b45"/>
+      <path d="M45,5 C51,1 63,1 65,6 C67,11 61,15 54,14 C47,13 43,9 45,5 Z" fill="#dfe9f2"/>
+      <path d="M50,34 C56,30 68,32 72,38 C76,45 70,54 60,55 C52,55 47,48 48,42 C48,38 48,36 50,34 Z" fill="#c9a46a"/>
+      <path d="M74,14 C82,10 94,14 96,24 C98,34 92,42 84,42 C76,42 72,34 72,26 C72,20 72,16 74,14 Z" fill="#4a7a4e"/>
+      ${routes}${selLine}${pins}
+    </svg>`;
+    // details for the selected place
+    const here = this.mapSel === c.location;
+    const evsHere = c.events.filter((e) => e.venue === this.mapSel);
+    const opts = here ? [] : c.travelOptions(this.mapSel);
+    const buttons = here ? '<div class="muted"><b>📍 You are here.</b></div>' : opts.map((o) => `<button class="btn" data-c="travel" data-v="${this.mapSel}:${o.mode}" ${o.ok ? '' : 'disabled'}>${o.icon} ${o.name.toUpperCase()} ${o.free ? 'FREE — the club pays' : o.ok ? money(o.cost) : `(${o.why})`}</button>`).join('');
+    const optInfo = here ? '' : `<div class="muted" style="margin-top:6px">${opts.filter((o) => o.why !== 'too far').map((o) => `${o.icon} ${o.name}: ${money(o.cost)}, ${o.slots ? `uses ${o.slots} training session${o.slots > 1 ? 's' : ''}` : 'no training time lost'}, +${o.fatigue} fatigue${o.jetLag ? ', <b>jet lag</b>' : ''}`).join('<br>')}</div>`;
+    const st = c.visited[this.mapSel];
+    const log = c.travelLog.slice(0, 6).map((t) => `<tr><td>S${t.season} W${t.week}</td><td>${VENUES[t.from].city} → ${VENUES[t.to].city}</td><td>${TRAVEL_ICON[t.mode] || ''} ${money(t.cost)}</td></tr>${t.event ? `<tr><td></td><td colspan="2" class="muted">${t.event}</td></tr>` : ''}`).join('');
+    return `${map}
+      <div class="ccard ${evsHere.length ? 'gold' : ''}" style="margin-top:10px">
+        <h4>${sel.icon} ${sel.name} <span class="muted" style="font-weight:600">• ${sel.city}${here ? '' : ` • ${c.kmTo(this.mapSel)} km`}</span></h4>
+        <div class="muted">${sel.type}. ${sel.blurb}<br>${SURFACE[sel.track.kind]}.${st?.visits ? ` You've been here ${st.visits} time${st.visits > 1 ? 's' : ''} (${st.races} races, ${st.wins} wins).` : ' Not visited yet.'}</div>
+        ${evsHere.length ? `<div class="muted" style="margin-top:6px">🏁 This week: ${evsHere.map((e) => `${e.name} (${RACES[e.raceId].short})`).join(', ')}</div>` : ''}
+        <div class="cbtns">${buttons}</div>
+        ${optInfo}
+      </div>
+      <div class="muted" style="margin:8px 2px">Travelling uses training time and makes your bird tired. Long flights cause jet lag (−3% in your next race). Each week away from home costs a hotel; a week at home gives extra rest and the home crowd cheers you on (+1.5%).</div>
+      ${log ? `<div class="label">TRAVEL LOG</div><table class="ctable">${log}</table>` : ''}`;
   }
 
   render_standings() {
@@ -338,17 +465,25 @@ export class CareerUI {
     const winRate = s.races ? Math.round((s.wins / s.races) * 100) : 0;
     const bests = ['r100', 'h100', 'r200', 'r400', 'r800'].map((r) => `<span>${RACES[r].short}</span><b>${s.best[r] ? formatTime(s.best[r]) : '—'}</b>`).join('');
     const trophies = c.trophies.map((t) => `<div class="trophy"><span class="ti">${t.icon}</span>${t.name}<div class="ts">Season ${t.season}</div></div>`).join('');
-    const hist = c.history.slice(0, 20).map((h) => `<tr><td>S${h.season} W${h.week}</td><td>${h.final ? '🏆 ' : ''}${h.event} <span class="muted">${RACES[h.raceId].short}</span></td>
+    const hist = c.history.slice(0, 20).map((h) => `<tr><td>S${h.season} W${h.week}</td><td>${h.final ? '🏆 ' : ''}${h.event} <span class="muted">${RACES[h.raceId].short}${h.venue ? ' • ' + VENUES[h.venue].city : ''}</span></td>
       <td>${h.place ? ordinal(h.place) : h.dq ? 'DQ' : 'DNF'}</td><td>${h.time ? formatTime(h.time) : '—'}</td><td>${h.prize ? money(h.prize) : '—'}</td></tr>`).join('');
     const seasons = c.seasonLog.map((x) => `<span>S${x.season} ${TIERS.find((t) => t.id === x.tier).name}</span><b>${ordinal(x.pos)}</b>`).join('');
     return `<div class="cgrid">
       <div class="ccard"><h4>Career statistics</h4><div class="kv">
         <span>Seasons</span><b>${s.seasons}</b><span>Races</span><b>${s.races}</b><span>Wins</span><b>${s.wins}</b>
         <span>Podiums</span><b>${s.podiums}</b><span>Win rate</span><b>${winRate}%</b><span>Prize money earned</span><b>${money(s.earnings)}</b>
-        <span>Training sessions</span><b>${s.trainingSessions}</b><span>DNF / DQ</span><b>${s.dnf} / ${s.dq}</b></div></div>
+        <span>Training sessions</span><b>${s.trainingSessions}</b><span>DNF / DQ</span><b>${s.dnf} / ${s.dq}</b>
+        <span>Distance travelled</span><b>${(s.travelKm || 0).toLocaleString('en-US')} km</b><span>Flights</span><b>${s.flights || 0}</b></div></div>
       <div class="ccard"><h4>Career best times</h4><div class="kv">${bests}</div>
         ${seasons ? `<h4 style="margin-top:10px">Season finishes</h4><div class="kv">${seasons}</div>` : ''}</div>
     </div>
+    <div class="label">PASSPORT (${Object.values(c.visited).filter((v) => v.visits > 0).length}/${VENUE_LIST.length} venues)</div>
+    <div class="trophies">${VENUE_LIST.map((v) => {
+      const st = c.visited[v.id];
+      const been = st && st.visits > 0;
+      const best = st ? Object.entries(st.best).map(([r, t]) => `${RACES[r].short} ${formatTime(t)}`).join(', ') : '';
+      return `<div class="trophy" style="${been ? '' : 'opacity:.38'}"><span class="ti">${v.icon}</span>${v.name}<div class="ts">${been ? `${st.races} races • ${st.wins} wins${best ? `<br>${best}` : ''}` : 'Not visited yet'}</div></div>`;
+    }).join('')}</div>
     <div class="label">TROPHY CABINET (${c.trophies.length})</div>
     ${trophies ? `<div class="trophies">${trophies}</div>` : '<div class="muted">No trophies yet. Win races and finals to fill the cabinet!</div>'}
     <div class="label">RACING HISTORY</div>

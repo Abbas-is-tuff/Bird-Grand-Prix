@@ -28,8 +28,9 @@ export class Commentary {
     on('phase', (p) => {
       if (p === 'intro') {
         const names = race.byLane.map((r) => `Lane ${r.lane}: ${r.name}`).join('   ');
-        this.line(`Welcome to Featherfield Stadium for the ${def.name}!`);
-        this.audio.say(`Welcome to the Bird Grand Prix. The ${def.dist} metres.`, { priority: true });
+        const where = race.venue?.name || 'Featherfield Stadium';
+        this.line(`Welcome to ${where} for the ${def.name}!`);
+        this.audio.say(`Welcome to ${where}. The ${def.dist} metres.`, { priority: true });
         setTimeout(() => this.race.phase === 'intro' && this.line(names), 2200);
       } else if (p === 'marks') {
         this.line('On your marks...');

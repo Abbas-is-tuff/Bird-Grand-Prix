@@ -58,6 +58,12 @@ export const TIME_PRESETS = {
     top: '#283f78', horizon: '#f6a15c', bottom: '#6a5a58', fog: '#d6a07a', fogNear: 150, fogFar: 850,
     clouds: 0.5, cloudColor: '#f3b8a0', sunSize: 1.4, stars: 0, exposure: 1.12, night: false,
   },
+  indoor: {
+    sun: [0.12, 1, 0.08], sunColor: '#fff6ea', sunIntensity: 2.8,
+    hemiSky: '#fff1e0', hemiGround: '#5a4a60', hemiIntensity: 1.5,
+    top: '#0c0e14', horizon: '#141822', bottom: '#0c0e14', fog: '#11141c', fogNear: 170, fogFar: 700,
+    clouds: 0, cloudColor: '#000000', sunSize: 0, stars: 0, exposure: 1.05, night: true, indoor: true,
+  },
   night: {
     sun: [0.22, 0.93, 0.28], sunColor: '#eef2ff', sunIntensity: 2.5,
     hemiSky: '#3a4a70', hemiGround: '#22221c', hemiIntensity: 0.7,
@@ -101,8 +107,12 @@ export class Environment {
     scene.fog = new THREE.Fog(0xffffff, 150, 900);
   }
 
-  apply(presetId, stadium) {
-    const p = TIME_PRESETS[presetId] || TIME_PRESETS.day;
+  apply(presetId, stadium, venue = null) {
+    if (venue?.indoor) presetId = 'indoor';
+    if (!venue?.indoor && presetId === 'indoor') presetId = 'day';
+    const p = Object.assign({}, TIME_PRESETS[presetId] || TIME_PRESETS.day, venue?.sky?.[presetId] || {});
+    this.sky.visible = !p.indoor;
+    this.scene.background = p.indoor ? new THREE.Color(p.fog) : null;
     this.preset = p;
     const u = this.skyMat.uniforms;
     u.uTop.value.set(p.top);

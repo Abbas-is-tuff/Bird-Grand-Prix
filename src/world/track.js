@@ -98,11 +98,20 @@ export function inChute(x, z) {
   return x < -T.L / 2 && x > -T.L / 2 - T.CHUTE - 2 && z > T.R - 0.5 && z < T.R + T.WALL + 0.5;
 }
 
-// Surface grip under a point. 1 = tartan track, lower = grass.
+// The running surface of the current venue (set when you travel to a venue).
+export const SURFACE = { kind: 'tartan', mu: 1.0, offKind: 'grass', offMu: 0.78 };
+export function setSurface(track, ground) {
+  SURFACE.kind = track.kind;
+  SURFACE.mu = track.mu;
+  SURFACE.offKind = ground === 'sand' ? 'sand' : ground === 'floor' ? 'floor' : 'grass';
+  SURFACE.offMu = ground === 'sand' ? 0.68 : ground === 'floor' ? 0.9 : 0.78;
+}
+
+// Surface grip under a point. 1 = best; grass, clay and sand are slower and less grippy.
 export function surfaceAt(x, z, straightMode) {
   let d;
   if (straightMode && x < T.L / 2 + 0.5) d = z - T.R;
   else d = locate(x, z).d;
-  if (d >= -0.05 && d <= T.WALL) return { mu: 1.0, kind: 'tartan', d };
-  return { mu: 0.78, kind: 'grass', d };
+  if (d >= -0.05 && d <= T.WALL) return { mu: SURFACE.mu, kind: SURFACE.kind, d };
+  return { mu: SURFACE.offMu, kind: SURFACE.offKind, d };
 }

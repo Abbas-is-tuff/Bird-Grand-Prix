@@ -1,7 +1,7 @@
-# BIRD GRAND PRIX — Version 0.3
+# BIRD GRAND PRIX — Version 0.4
 
 A 3D bird ground-racing game that runs in a web browser (PC, iPad, phone).
-This version covers **Phase 1 (foundation), Phase 2 (racing), Phase 3 (AI) and Phase 4 (career & training)** of the plan.
+This version covers **Phase 1 (foundation), Phase 2 (racing), Phase 3 (AI) and Phase 4 (career & training)** of the plan, plus **6 stadiums and career travel**.
 
 **Play it online:** once GitHub Pages is switched on (see below) the game is at
 `https://abbas-is-tuff.github.io/Bird-Grand-Prix/`
@@ -21,12 +21,44 @@ This version covers **Phase 1 (foundation), Phase 2 (racing), Phase 3 (AI) and P
 | Rules | Random "Set" hold time, false starts (warning, then disqualified), reaction times, lane violations on bends, photo-accurate finish times. |
 | AI | 5 personalities: Aggressive, Consistent, Fast starter, Endurance, Unpredictable. They react to the gun, pace themselves, kick for the line, slow for bends, overtake on the outside in the 800 m. Easy / Normal / Hard. |
 | Cameras | Chase, TV Side, Bird Level, Trackside, Finish Line, Cinematic (auto director). Smooth transitions. |
-| Stadium | Track with lane lines and kerb, mowed infield, grandstands with an animated bird crowd, roof, floodlights, live scoreboard, finish gantry timer, sponsor boards (invented names), trees, city, hills. Day / Sunset / Night. |
+| Stadiums | 6 venues (see below), each with its own track surface, stands, crowd, scenery and lighting. Live scoreboard, finish gantry timer, sponsor boards (invented names). Day / Sunset / Night outdoors. |
 | Sound | Footsteps, starter's gun with echo, countdown, lap bell, crowd that gets louder in close finishes, chirps, wing flaps, victory tune, spoken commentary (uses your device's voice). All sounds are generated in code. |
 | Records | Personal bests per bird and stadium records are saved on your device. |
 
 | Time trials | Quick Race → Rivals → **Time trial**: race alone against the clock. |
 | Barriers | Bird-sized hurdles. **JUMP** just before each one. Clear it and you keep your speed; hit it and it falls over and you lose half your speed. **100 m Barriers** is a race type (also in career from Amateur level). |
+
+### Stadiums
+
+Pick one in **Quick Race → Venue**. All are invented places.
+
+| Venue | Where | Track | What it's like |
+|---|---|---|---|
+| 🏟️ Featherfield Stadium | Featherfield (home) | Red rubber | Your home stadium: covered grandstand, floodlights, city and trees. |
+| 🌳 Meadowbrook Green | Meadowbrook | Grass | Village field with picnic banks, marquees and hedges. Grass is slower and slippery. |
+| 🌾 Hollow Hills Course | Hollow Hills | Cinder | Countryside track between farms (barn, silo, a spinning windmill). Fans lean on the fence. |
+| 🏜️ Dune Valley Speedway | Dune Valley | Clay | Desert track under shade sails, with palms, rocks and dunes. A little slippery. |
+| ❄️ Aurora Indoor Arena | Nordhaven | Purple rubber | Indoors: a full ring of seats, a roof with lamps, perfect conditions, no time of day. |
+| 🌍 Grand Aviary Stadium | Skyhaven | Blue rubber | The biggest stage: a giant bowl with a ring roof, flags and two scoreboards. |
+
+Grass, cinder and clay grip less than rubber, so birds are a bit slower and run wider on the bends there.
+
+### Career travel — the life of a travelling racer
+
+| Feature | How it works |
+|---|---|
+| Where you are | Your bird lives in **Featherfield**. The career screen always shows where you are (📍). |
+| Races around the map | Each week one event is near you and one is somewhere else. The level's final is held at a big venue (Featherfield → Dune Valley → Aurora → Grand Aviary). Bigger venues pay more prize money. |
+| TRAVEL tab | A map of all six places. Tap a pin to see the venue, this week's races there, and the trip options. Race cards also have **BUS / TRAIN / PLANE & ENTER** buttons. |
+| 🚌 Bus | Cheapest, only for nearby places. Slow: can use up 1–2 training sessions and makes your bird tired. |
+| 🚆 Train | Middle price, medium distances, uses 1 training session, less tiring. |
+| ✈️ Plane | Expensive but quick. Long flights cause **jet lag** (−3% speed in your next race). |
+| Costs | Trips cost more at higher levels. Every week you stay away from home you pay for a **hotel**. If you are completely broke away from home, the club pays for your ride back. |
+| Home advantage | A week at home gives extra rest (+6 freshness) and the home crowd gives you +1.5% speed. |
+| Things happen | Sometimes something happens on the trip: a delayed flight, a broken-down bus, a fan sharing millet, a radio interview… |
+| Passport | **RECORDS** shows every venue you've visited with your races, wins and best times there, plus total distance travelled and flights. New trophies: *First flight* and *World traveller* (race at all six venues). |
+
+Careers saved before version 0.4 still load; your bird simply starts at home in Featherfield.
 
 ### Phase 4: Career mode
 
@@ -54,7 +86,7 @@ This version covers **Phase 1 (foundation), Phase 2 (racing), Phase 3 (AI) and P
 
 Leaving a career race through the pause menu counts as a DNF (did not finish), so you can't restart a race you're losing.
 
-**Not in this version yet (coming in later phases):** garage/customisation, obstacle races, more stadiums, weather, online multiplayer. Their menu buttons are shown as locked.
+**Not in this version yet (coming in later phases):** garage/customisation, obstacle races, weather, online multiplayer. Their menu buttons are shown as locked.
 
 ---
 
@@ -126,9 +158,10 @@ bird-grand-prix/
     ├── data/species.js   ★ the 6 species: speed, stamina, grip, body shape, gait
     ├── data/roster.js    ★ every bird: name, number, colours, personality
     ├── data/races.js     race distances, pace, difficulty levels
+    ├── data/venues.js    ★ the 6 stadiums: track colour/surface, stands, roof, scenery, map position
     ├── world/track.js    400 m track maths (lanes, staggers, distances)
     ├── world/trackMesh.js   draws the track, lines and markings
-    ├── world/stadium.js  stands, crowd, floodlights, scoreboard, scenery
+    ├── world/stadium.js  builds any venue: stands, crowd, roofs, floodlights, scoreboards, scenery
     ├── world/environment.js sky, sun, shadows, day/sunset/night
     ├── world/textures.js all textures, painted in code
     ├── world/barriers.js the hurdle barriers (and knocking them over)
@@ -138,7 +171,7 @@ bird-grand-prix/
     ├── race/race.js      start procedure, rules, finish, results
     ├── race/racer.js     one competitor (model + physics + name tag)
     ├── race/commentary.js   commentator lines
-    ├── career/careerData.js  ★ career rules: levels, prize money, training, sponsors
+    ├── career/careerData.js  ★ career rules: levels, prize money, training, sponsors, travel prices
     ├── career/career.js      the career itself: weeks, seasons, training, standings, trophies
     ├── career/drills.js      ★ the training drills and how they are graded
     ├── ai/aiController.js    computer racers and their personalities
@@ -154,6 +187,8 @@ bird-grand-prix/
 * **A bird's colours:** open `src/data/roster.js`, find the bird, change a colour code like `body: '#5fae3e'`. Save, and refresh the browser.
 * **Add a new bird:** copy one whole `{ ... }` block in `roster.js`, give it a new `id`, `name` and `number`, and pick a `species`.
 * **Make a species faster:** in `src/data/species.js` raise `topSpeed` a little (e.g. 8.9 → 9.1).
+* **Change a stadium:** in `src/data/venues.js` change a venue's `track: { color: '#c2452f' }` to repaint its track, or `seats` to change the seat colour.
+* **Cheaper travel:** in `src/career/careerData.js` lower the numbers in `TRAVEL_MODES` or `HOTEL_PER_WEEK`.
 * **Make the career easier:** in `src/career/careerData.js` lower the `oppSpeed` numbers for a level, or raise `START_MONEY`.
 
 After editing, run `node build.mjs` (see below) only if you want to update `play-offline.html`. The normal `index.html` uses your changes straight away.
