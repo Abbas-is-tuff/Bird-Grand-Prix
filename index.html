@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Bird GP">
+  <meta name="theme-color" content="#0b1324">
+  <link rel="icon" type="image/png" href="icon.png">
+  <link rel="apple-touch-icon" href="icon.png">
+  <title>Bird Grand Prix</title>
+  <link rel="stylesheet" href="style.css">
+  <script type="importmap">
+    { "imports": { "three": "./lib/three.module.min.js", "three/addons/": "./lib/addons/" } }
+  </script>
+</head>
+<body>
+  <div id="app"></div>
+
+  <!-- Loading -->
+  <div id="loading" class="screen show">
+    <div class="logo"><span class="logo-top">BIRD</span><span class="logo-main">GRAND PRIX</span></div>
+    <div class="loadbar"><div id="loadfill"></div></div>
+    <div id="loadtext">Building the stadium…</div>
+  </div>
+
+  <!-- Main menu -->
+  <div id="menu" class="screen">
+    <div class="menu-inner">
+      <div class="logo"><span class="logo-top">BIRD</span><span class="logo-main">GRAND PRIX</span></div>
+      <div class="tagline">Professional bird racing • Featherfield Stadium</div>
+      <div class="menu-buttons">
+        <button class="btn primary big" data-action="quick">QUICK RACE</button>
+        <button class="btn" data-action="collection">BIRD COLLECTION</button>
+        <button class="btn" data-action="settings">SETTINGS</button>
+        <button class="btn" data-action="career">CAREER <small id="career-badge">NEW</small></button>
+        <button class="btn" data-action="training">TRAINING</button>
+        <button class="btn locked" data-action="locked" data-msg="Garage and customisation arrive in Phase 5.">GARAGE <small>Phase 5</small></button>
+        <button class="btn locked" data-action="locked" data-msg="Online multiplayer arrives in Phase 6.">MULTIPLAYER <small>Phase 6</small></button>
+      </div>
+      <div class="version">Version 0.2 • Phase 4: career & training</div>
+    </div>
+  </div>
+
+  <!-- Race setup / bird collection -->
+  <div id="setup" class="screen">
+    <div class="panel setup-panel">
+      <div class="panel-head">
+        <button class="btn small ghost" data-action="back">‹ BACK</button>
+        <h2 id="setup-title">QUICK RACE</h2>
+      </div>
+      <div class="setup-body">
+        <div class="col birds-col">
+          <div class="label">CHOOSE YOUR BIRD</div>
+          <div id="bird-list" class="bird-list"></div>
+        </div>
+        <div class="col detail-col">
+          <div id="bird-detail" class="bird-detail"></div>
+          <div id="race-options">
+            <div class="label">RACE</div>
+            <div id="race-pick" class="seg"></div>
+            <div id="race-tip" class="tip"></div>
+            <div class="row2">
+              <div>
+                <div class="label">TIME</div>
+                <div id="time-pick" class="seg"></div>
+              </div>
+              <div>
+                <div class="label">RIVALS</div>
+                <div id="diff-pick" class="seg"></div>
+              </div>
+            </div>
+          </div>
+          <button id="start-btn" class="btn primary big" data-action="start">START RACE</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Career -->
+  <div id="career" class="screen">
+    <div class="panel career-panel">
+      <div class="panel-head career-head">
+        <button class="btn small ghost" data-action="back">‹ MENU</button>
+        <div id="career-title" class="career-title"></div>
+        <div id="career-money" class="money"></div>
+      </div>
+      <div id="career-tabs" class="tabs"></div>
+      <div id="career-body" class="career-body"></div>
+    </div>
+  </div>
+
+  <!-- Settings -->
+  <div id="settings" class="screen">
+    <div class="panel small-panel">
+      <div class="panel-head">
+        <button class="btn small ghost" data-action="back">‹ BACK</button>
+        <h2>SETTINGS</h2>
+      </div>
+      <div id="settings-body" class="settings-body"></div>
+    </div>
+  </div>
+
+  <!-- In-race HUD -->
+  <div id="hud" class="hidden">
+    <div class="hud-top">
+      <div class="hud-pos"><span id="hud-place">-</span><span id="hud-of">/6</span><div id="hud-lap"></div></div>
+      <div class="hud-center">
+        <div id="hud-time">0.00</div>
+        <div id="hud-dist"></div>
+        <div id="hud-ticker"></div>
+      </div>
+      <div class="hud-buttons">
+        <button class="hbtn" id="cam-btn"><span class="ico">🎥</span><span id="cam-name">Chase</span></button>
+        <button class="hbtn" id="pause-btn">❚❚</button>
+      </div>
+    </div>
+    <div id="standings" class="standings"></div>
+    <canvas id="minimap" width="220" height="124"></canvas>
+    <div id="bigmsg"></div>
+    <div id="hint"></div>
+    <div class="hud-bottom">
+      <div class="meter">
+        <div class="meter-label">STAMINA</div>
+        <div class="bar"><div id="stamina-fill"></div></div>
+        <div id="hud-speed">0 km/h</div>
+      </div>
+    </div>
+    <div id="touch" class="touch">
+      <div class="steer">
+        <button class="tbtn" data-input="left">◀</button>
+        <button class="tbtn" data-input="right">▶</button>
+      </div>
+      <div class="go">
+        <button class="tbtn sprint" data-input="sprint">SPRINT</button>
+        <button class="tbtn run" data-input="run">RUN</button>
+      </div>
+    </div>
+    <div id="fps"></div>
+  </div>
+
+  <!-- Pause -->
+  <div id="pause" class="screen dim">
+    <div class="panel small-panel center">
+      <h2>PAUSED</h2>
+      <button class="btn primary" data-action="resume">RESUME</button>
+      <button class="btn" data-action="restart" id="pause-restart">RESTART RACE</button>
+      <button class="btn" data-action="settings">SETTINGS</button>
+      <button class="btn" data-action="quit" id="pause-quit">QUIT TO MENU</button>
+      <div class="controls-help">
+        <b>Keyboard:</b> W / ↑ run • Shift or Space sprint • A D / ← → steer • C camera • P pause
+      </div>
+    </div>
+  </div>
+
+  <!-- Results -->
+  <div id="results" class="screen dim">
+    <div class="panel results-panel">
+      <div class="panel-head"><h2 id="res-title">RESULTS</h2></div>
+      <div id="res-banner"></div>
+      <table id="res-table"></table>
+      <div class="res-buttons">
+        <button class="btn primary career-only" data-action="career-continue">CONTINUE CAREER</button>
+        <button class="btn primary quick-only" data-action="again">RACE AGAIN</button>
+        <button class="btn quick-only" data-action="change">CHANGE RACE</button>
+        <button class="btn quick-only" data-action="quit">MAIN MENU</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast"></div>
+
+  <script type="module" src="src/main.js"></script>
+</body>
+</html>

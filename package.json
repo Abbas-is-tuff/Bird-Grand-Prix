@@ -1,0 +1,10 @@
+{
+  "name": "bird-grand-prix",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Bird Grand Prix - a 3D bird ground-racing game (Three.js)",
+  "scripts": { "build": "node build.mjs" },
+  "dependencies": { "three": "0.187.0" },
+  "devDependencies": { "esbuild": "^0.28.0" }
+}
