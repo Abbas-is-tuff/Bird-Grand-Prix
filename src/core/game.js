@@ -15,6 +15,7 @@ import { Menus } from '../ui/menus.js';
 import { renderPortraits } from '../ui/portraits.js';
 import { CareerUI } from '../ui/careerUI.js';
 import { Career } from '../career/career.js';
+import { DRILLS, scoreDrill } from '../career/drills.js';
 import { Race } from '../race/race.js';
 import { BirdBody } from '../birds/birdPhysics.js';
 import { Commentary } from '../race/commentary.js';
@@ -155,11 +156,23 @@ export class Game {
     });
   }
 
+  // Training: play the drill for this session on the track.
+  startDrill(type, coach) {
+    const c = this.career;
+    this.menus.hideAll();
+    this.startRace({
+      bird: c.birdId, race: DRILLS[type].id, raceDef: DRILLS[type], time: 'day', difficulty: 'solo',
+      opponents: [], playerBonus: c.raceModifiers(), drill: type, coach,
+    });
+    this.race.skipIntro();
+  }
+
   continueCareer() {
+    const tab = this.lastOpts?.drill ? 'train' : 'home';
     this.disposeRace();
     this.audio.stopSpeech();
     this.toMenu();
-    this.careerUI.open('home');
+    this.careerUI.open(tab);
     if (this.lastCareerSum) this.careerUI.afterWeek(this.lastCareerSum);
     this.lastCareerSum = null;
   }
@@ -175,8 +188,9 @@ export class Game {
     if (this.preview) this.preview.model.root.visible = false;
     this.env.apply(opts.time, this.stadium);
     const race = new Race({
-      scene: this.scene, input: this.input, raceId: opts.race, playerBirdId: opts.bird,
+      scene: this.scene, input: this.input, raceId: opts.raceDef || opts.race, playerBirdId: opts.bird,
       opponentIds: opts.opponents, difficulty: opts.difficulty, oppSpeed: opts.oppSpeed || null, playerBonus: opts.playerBonus || null,
+      drill: opts.drill ? DRILLS[opts.drill] : null,
     });
     this.race = race;
     this.track.setRaceMarkings(race.def, race.lanesUsed, (k) => race.startPoint(k));
@@ -222,6 +236,14 @@ export class Game {
       }
     });
     race.on('results', (res) => this.showResults(res));
+    race.on('barrierHit', ({ racer }) => {
+      this.audio.clatter(racer.isPlayer ? 0.5 : 0.25);
+      if (racer.isPlayer) this.hud.big('OUCH!', 'red', 0.7);
+    });
+    race.on('barrierClear', ({ racer }) => {
+      if (racer.isPlayer) this.hud.flashBarrier();
+    });
+    race.on('jump', (r) => this.audio.flap(0.18));
     this.onPhase('intro');
   }
 
@@ -230,8 +252,10 @@ export class Game {
     if (p === 'intro') {
       this.hud.hint(touch ? 'Tap the screen to skip the introduction' : 'Click or press Enter to skip the introduction', 4);
     } else if (p === 'marks') {
-      this.hud.big('ON YOUR MARKS', '', 1.6);
-      this.hud.hint(touch ? 'Wait for the gun… then hold RUN (or SPRINT)' : 'Wait for the gun… then hold W (run) or SHIFT (sprint)', 4.5);
+      this.hud.big(this.race?.drill ? 'TRAINING' : 'ON YOUR MARKS', '', 1.6);
+      if (this.race?.drill) this.hud.hint(this.race.drill.hint + (touch ? '' : ' (Keys: W run, Shift sprint, Space jump)'), 6);
+      else if (this.race?.barrierDists.length) this.hud.hint(touch ? 'Wait for the gun… RUN/SPRINT, and tap JUMP before each barrier' : 'Wait for the gun… W/Shift to run, SPACE to jump the barriers', 5);
+      else this.hud.hint(touch ? 'Wait for the gun… then hold RUN (or SPRINT)' : 'Wait for the gun… then hold W (run) or SHIFT (sprint)', 4.5);
       this.audio.beep(false);
     } else if (p === 'set') {
       this.hud.big('SET', '', 1.0);
@@ -240,14 +264,19 @@ export class Game {
   }
 
   restartRace() {
-    if (!this.lastOpts || this.lastOpts.careerEventId) return;
+    if (!this.lastOpts || this.lastOpts.careerEventId || this.lastOpts.drill) return;
     this.menus.hideAll();
     this.startRace(Object.assign({}, this.lastOpts));
   }
 
   quitRace(keepPreview = false) {
-    const careerRace = this.lastOpts?.careerEventId && this.race;
-    if (careerRace && !this.careerRecorded && this.career) {
+    const careerRace = (this.lastOpts?.careerEventId || this.lastOpts?.drill) && this.race;
+    if (careerRace && this.lastOpts.drill && !this.careerRecorded && this.career) {
+      // stopping a drill early: the session is used up with no improvement
+      this.careerRecorded = true;
+      this.career.finishTraining(0);
+      this.lastCareerSum = null;
+    } else if (careerRace && !this.careerRecorded && this.career) {
       // leaving a career race early counts as "did not finish"
       this.careerRecorded = true;
       this.lastCareerSum = this.career.recordRace(this.lastOpts.careerEventId, null);
@@ -291,6 +320,16 @@ export class Game {
 
   showResults(res) {
     this.resultsShown = true;
+    if (this.lastOpts?.drill && this.career) {
+      if (this.careerRecorded) return;
+      this.careerRecorded = true;
+      const drill = DRILLS[this.lastOpts.drill];
+      const sum = scoreDrill(drill, res.player);
+      const tr = this.career.finishTraining(sum.mult, sum.grade);
+      this.lastCareerSum = null;
+      this.menus.showDrillResults(drill, sum, tr, this.career);
+      return;
+    }
     let pbInfo = null;
     const p = res.player;
     if (p && p.time != null && !p.dq) pbInfo = submitTime(p.racer.bird.id, p.racer.name, res.def.id, p.time);
@@ -317,6 +356,7 @@ export class Game {
     }
     if (inp.consume('camera') && this.state === 'race') this.cycleCamera();
     if (inp.consume('skip') && this.race?.phase === 'intro') this.race.skipIntro();
+    if (inp.consume('jump') && this.state === 'race' && this.race && !this.paused) this.race.player.controller.queueJump?.();
     if (inp.anyPress) this.audio.unlock();
 
     let focus;

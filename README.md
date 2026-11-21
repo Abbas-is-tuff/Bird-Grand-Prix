@@ -1,4 +1,4 @@
-# BIRD GRAND PRIX — Version 0.2
+# BIRD GRAND PRIX — Version 0.3
 
 A 3D bird ground-racing game that runs in a web browser (PC, iPad, phone).
 This version covers **Phase 1 (foundation), Phase 2 (racing), Phase 3 (AI) and Phase 4 (career & training)** of the plan.
@@ -26,6 +26,7 @@ This version covers **Phase 1 (foundation), Phase 2 (racing), Phase 3 (AI) and P
 | Records | Personal bests per bird and stadium records are saved on your device. |
 
 | Time trials | Quick Race → Rivals → **Time trial**: race alone against the clock. |
+| Barriers | Bird-sized hurdles. **JUMP** just before each one. Clear it and you keep your speed; hit it and it falls over and you lose half your speed. **100 m Barriers** is a race type (also in career from Amateur level). |
 
 ### Phase 4: Career mode
 
@@ -35,11 +36,21 @@ This version covers **Phase 1 (foundation), Phase 2 (racing), Phase 3 (AI) and P
 | Competitions | Each week you choose one of two events (or rest). Higher levels add longer races, sunset and night meetings, entry fees and bigger prize money. Rivals get faster at every level. |
 | Prize money | Paid for places 1–6. Spend it on entry fees, a pro coach, the physio or training camps. |
 | Ranking points | Earned by finishing position (double in the final). All 13 birds earn points every week, so the standings table is a real league. |
-| Training | Sprint, Endurance, Acceleration, Turning practice and Recovery. Two sessions per week (three with a training camp). Gains are small, shrink near each stat's limit, and shrink when your bird is tired, so nothing maxes out instantly. Training slowly fades if you stop. |
+| Training | Every session is a **drill you play on the track**. Two sessions per week (three with a training camp). Your grade (S, A, B, C, D) decides how much your bird improves — an S is worth three times a D. Gains also shrink near each stat's limit and when your bird is tired, so nothing maxes out instantly. Training slowly fades if you stop. Stopping a drill early wastes the session. |
 | Fatigue | Training and racing make your bird tired. A tired bird races slower and starts with less stamina. Rest, Recovery sessions and the physio bring freshness back. |
 | Sponsors & contracts | From Amateur level, sponsors offer contracts: weekly pay, a bonus per win, and a big completion bonus if you reach their top-3 goal in time. |
 | Records | Career statistics, best times, season finishes, racing history, training log and a trophy cabinet (final medals, season titles, promotions and milestones). |
 | Saving | The career saves automatically on your device after every action. |
+
+**Training drills**
+
+| Session | Drill | What is graded |
+|---|---|---|
+| ⚡ Sprint training | Barrier sprints: 100 m, 5 barriers | time + barriers |
+| 🔋 Endurance runs | Endurance lap: 400 m, 4 barriers | time + barriers |
+| 🚀 Acceleration drills | Start & burst: 60 m from the gun, 2 barriers | reaction time + time + barriers |
+| 🌀 Turning practice | Bend control: 200 m with **no lane assist**, 3 barriers | staying in your lane + barriers + time |
+| 🛁 Recovery | Cool-down jog: 80 m | don't sprint! |
 
 Leaving a career race through the pause menu counts as a DNF (did not finish), so you can't restart a race you're losing.
 
@@ -57,7 +68,8 @@ Leaving a career race through the pause menu counts as a DNF (did not finish), s
 | Action | Keyboard | Touch |
 |---|---|---|
 | Run | W or ↑ | RUN button |
-| Sprint | Shift or Space | SPRINT button |
+| Sprint | Shift | SPRINT button |
+| Jump (barriers) | Space or J | JUMP button (appears when there are barriers) |
 | Steer | A / D or ← / → | ◀ ▶ buttons |
 | Change camera | C | 🎥 button |
 | Pause | P or Esc | ❚❚ button |
@@ -119,6 +131,7 @@ bird-grand-prix/
     ├── world/stadium.js  stands, crowd, floodlights, scoreboard, scenery
     ├── world/environment.js sky, sun, shadows, day/sunset/night
     ├── world/textures.js all textures, painted in code
+    ├── world/barriers.js the hurdle barriers (and knocking them over)
     ├── birds/birdModel.js    builds a 3D bird (body, head, beak, feathers, legs)
     ├── birds/birdAnimator.js running animation (foot planting, IK, head, feathers)
     ├── birds/birdPhysics.js  running physics + stamina
@@ -127,6 +140,7 @@ bird-grand-prix/
     ├── race/commentary.js   commentator lines
     ├── career/careerData.js  ★ career rules: levels, prize money, training, sponsors
     ├── career/career.js      the career itself: weeks, seasons, training, standings, trophies
+    ├── career/drills.js      ★ the training drills and how they are graded
     ├── ai/aiController.js    computer racers and their personalities
     ├── input/input.js        keyboard + touch buttons
     ├── input/playerController.js  your bird's controls + lane assist

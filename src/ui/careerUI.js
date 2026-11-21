@@ -1,5 +1,6 @@
 // Career screens: start a career, then the hub with tabs (Home, Train, Race, Standings, Records, Sponsors).
 import { Career, TIERS, TRAINING, EXTRAS, SEASON_WEEKS } from '../career/career.js';
+import { DRILLS } from '../career/drills.js';
 import { ROSTER, BIRDS } from '../data/roster.js';
 import { SPECIES, ratings } from '../data/species.js';
 import { RACES, TIMES_OF_DAY } from '../data/races.js';
@@ -45,6 +46,8 @@ export class CareerUI {
 
   open(tab) {
     if (tab) this.tab = tab;
+    // a drill that was left unfinished (e.g. the app was closed) counts as abandoned
+    if (this.career?.pendingTraining && !this.game.race) this.career.finishTraining(0);
     this.render();
     this.game.menus.show('career');
     const c = this.career;
@@ -77,11 +80,12 @@ export class CareerUI {
         break;
       case 'train': {
         const [type, coach] = v.split(':');
-        const r = c.train(type, coach === '1');
-        if (r.error) this.toast(r.error);
-        else if (r.stat) this.toast(`${TRAINING[type].icon} ${r.label} ${pct(r.gain)}${r.tired ? ' — tired birds learn less!' : ''}${r.nearCap ? ' (close to the limit)' : ''}`);
-        else this.toast(`🛁 Freshness ${r.fatigue <= 0 ? '+' : ''}${-r.fatigue}`);
-        this.render();
+        const r = c.startTraining(type, coach === '1');
+        if (r.error) {
+          this.toast(r.error);
+          break;
+        }
+        g.startDrill(type, coach === '1');
         break;
       }
       case 'physio': {
@@ -266,19 +270,21 @@ export class CareerUI {
     const none = c.slotsLeft <= 0;
     const cards = Object.values(TRAINING).map((T) => {
       const eff = T.stat ? `${T.label} up • fatigue +${T.fatigue}` : `fatigue ${T.fatigue}`;
-      return `<div class="tcard"><div class="ic">${T.icon}</div><div class="nm">${T.name}</div><div class="muted">${T.desc}<br><b>${eff}</b></div>
+      const D = DRILLS[T.id];
+      const drillTxt = `Drill: <b>${D.name}</b> — ${D.dist} m${D.barriers.length ? `, ${D.barriers.length} barriers` : ''}`;
+      return `<div class="tcard"><div class="ic">${T.icon}</div><div class="nm">${T.name}</div><div class="muted">${T.desc}<br>${drillTxt}<br><b>${eff}</b></div>
         <div class="cbtns"><button class="btn" data-c="train" data-v="${T.id}:0" ${none ? 'disabled' : ''}>TRAIN</button>
         ${T.stat ? `<button class="btn" data-c="train" data-v="${T.id}:1" ${none || c.money < coachP ? 'disabled' : ''}>WITH COACH ${money(coachP)}</button>` : ''}</div></div>`;
     }).join('');
     const log = c.trainingLog.slice(0, 8).map((l) => {
       const T = TRAINING[l.type];
-      return `<tr><td>S${l.season} W${l.week}</td><td>${T.icon} ${T.name}${l.coach ? ' (coach)' : ''}</td><td>${T.stat ? pct(l.gain) + ' ' + T.label : `${-l.fatigue} fatigue`}</td></tr>`;
+      return `<tr><td>S${l.season} W${l.week}</td><td>${T.icon} ${T.name}${l.coach ? ' (coach)' : ''}</td><td>${l.grade ? `<b>${l.grade}</b> ` : ''}${T.stat ? pct(l.gain) + ' ' + T.label : `${-l.fatigue} fatigue`}</td></tr>`;
     }).join('');
     return `<div class="cgrid">
         <div class="ccard"><h4>This week</h4>
           <div class="kv"><span>Training sessions left</span><b>${c.slotsLeft} / ${c.slots}</b></div>
           ${this.freshBar()}
-          <div class="muted" style="margin-top:6px">Training improves your bird a little at a time. Gains get smaller near each limit and when your bird is tired. Unused training slowly fades.</div>
+          <div class="muted" style="margin-top:6px">Every session is a drill you run yourself. Your grade (S, A, B, C or D) decides how much your bird improves: an S is worth three times a D. Gains also shrink near each limit and when your bird is tired.</div>
         </div>
         <div class="ccard"><h4>Trained stats</h4>${this.statRows()}<div class="muted">Blue = natural ability. Gold = gained from training.</div></div>
       </div>
@@ -290,7 +296,7 @@ export class CareerUI {
           <div class="cbtns"><button class="btn" data-c="camp" ${c.extraSlots > 0 || c.money < campP ? 'disabled' : ''}>BOOK ${money(campP)}</button></div></div>
       </div>
       <div class="label">TRAINING LOG</div>
-      ${log ? `<table class="ctable"><tr><th>WHEN</th><th>SESSION</th><th>RESULT</th></tr>${log}</table>` : '<div class="muted">No sessions yet.</div>'}`;
+      ${log ? `<table class="ctable"><tr><th>WHEN</th><th>SESSION</th><th>GRADE / RESULT</th></tr>${log}</table>` : '<div class="muted">No sessions yet.</div>'}`;
   }
 
   render_race() {
@@ -330,7 +336,7 @@ export class CareerUI {
     const c = this.career;
     const s = c.stats;
     const winRate = s.races ? Math.round((s.wins / s.races) * 100) : 0;
-    const bests = ['r100', 'r200', 'r400', 'r800'].map((r) => `<span>${RACES[r].short}</span><b>${s.best[r] ? formatTime(s.best[r]) : '—'}</b>`).join('');
+    const bests = ['r100', 'h100', 'r200', 'r400', 'r800'].map((r) => `<span>${RACES[r].short}</span><b>${s.best[r] ? formatTime(s.best[r]) : '—'}</b>`).join('');
     const trophies = c.trophies.map((t) => `<div class="trophy"><span class="ti">${t.icon}</span>${t.name}<div class="ts">Season ${t.season}</div></div>`).join('');
     const hist = c.history.slice(0, 20).map((h) => `<tr><td>S${h.season} W${h.week}</td><td>${h.final ? '🏆 ' : ''}${h.event} <span class="muted">${RACES[h.raceId].short}</span></td>
       <td>${h.place ? ordinal(h.place) : h.dq ? 'DQ' : 'DNF'}</td><td>${h.time ? formatTime(h.time) : '—'}</td><td>${h.prize ? money(h.prize) : '—'}</td></tr>`).join('');

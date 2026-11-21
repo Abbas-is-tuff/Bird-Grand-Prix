@@ -54,6 +54,12 @@ export class HUD {
     this._timed('msg', this.msg, dur);
   }
 
+  flashBarrier() {
+    this.lap.classList.remove('flash');
+    void this.lap.offsetWidth;
+    this.lap.classList.add('flash');
+  }
+
   hideBig() {
     this.msg.classList.remove('on');
   }
@@ -79,6 +85,8 @@ export class HUD {
       this.rows.push(row);
     }
     this.of.textContent = '/' + race.racers.length;
+    this.root.classList.toggle('has-jump', race.barrierDists.length > 0);
+    this.root.classList.toggle('solo', race.racers.length === 1);
     this.lap.textContent = '';
     this.tick.classList.remove('on');
     this.hideBig();
@@ -98,8 +106,16 @@ export class HUD {
     // distance + lap
     if (p.dq) this.dist.textContent = p.dq === 'False start' ? 'DISQUALIFIED (false start)' : 'DISQUALIFIED (lane violation)';
     else if (p.finished) this.dist.textContent = 'FINISHED';
-    else this.dist.textContent = `${race.def.short.toUpperCase()}  •  ${Math.max(0, Math.ceil(D - p.progress))} m TO GO`;
-    if (race.def.laps > 1) {
+    else {
+      const label = race.drill ? race.def.name.toUpperCase() : race.def.short.toUpperCase();
+      let txt = `${label}  •  ${Math.max(0, Math.ceil(D - p.progress))} m TO GO`;
+      const nb = p.barriers.length ? race.nextBarrier(p) : null;
+      if (nb && race.phase === 'running') txt += `  •  BARRIER IN ${Math.max(0, Math.ceil(nb.dist - p.progress))} m`;
+      this.dist.textContent = txt;
+    }
+    if (p.barriers.length) {
+      this.lap.textContent = `BARRIERS ${p.barriersCleared}/${p.barriers.length}`;
+    } else if (race.def.laps > 1) {
       const lap = clamp(Math.floor(Math.max(0, p.progress) / 400) + 1, 1, race.def.laps);
       this.lap.textContent = p.finished ? '' : `LAP ${lap}/${race.def.laps}`;
     }

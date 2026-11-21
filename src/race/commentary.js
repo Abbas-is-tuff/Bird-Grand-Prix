@@ -11,6 +11,20 @@ export class Commentary {
     const def = race.def;
     const on = (ev, fn) => race.on(ev, fn);
 
+    if (race.drill) {
+      // training: a coach instead of a stadium announcer
+      on('phase', (p) => {
+        if (p === 'marks') this.line(`Training: ${def.name}. ${race.drill.hint}`);
+      });
+      on('gun', () => { this.audio.gun(); this.line('Go go go!'); });
+      on('falseStart', ({ racer }) => { this.audio.doubleGun(); this.line(`Too early, ${racer.name}! Wait for the gun.`); });
+      on('barrierClear', () => { if (Math.random() < 0.5) this.line(pick(['Nice jump!', 'Clean!', 'Good timing!', 'Up and over!'])); });
+      on('barrierHit', () => this.line(pick(['Clipped it! Jump a bit earlier.', 'Ouch — that barrier went down!', 'Too late on that one!'])));
+      on('barrierMiss', () => this.line('You ran around the barrier — that does not count!'));
+      on('finish', (r) => { this.audio.chirp(r.species.size, 0.25); this.line(`Drill complete in ${formatTime(r.finishTime)} s.`); });
+      return;
+    }
+    on('barrierHit', ({ racer }) => { if (racer.isPlayer || Math.random() < 0.3) this.line(`${racer.name} hits a barrier!`); });
     on('phase', (p) => {
       if (p === 'intro') {
         const names = race.byLane.map((r) => `Lane ${r.lane}: ${r.name}`).join('   ');

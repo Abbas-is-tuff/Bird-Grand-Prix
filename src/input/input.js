@@ -1,7 +1,7 @@
 // Keyboard + touch input in one place.
-//   Keyboard: W / Up = run, Shift or Space = sprint, A/D or Left/Right = steer,
+//   Keyboard: W / Up = run, Shift = sprint, Space or J = jump, A/D or Left/Right = steer,
 //             C = change camera, P / Esc = pause
-//   Touch:    on-screen buttons with data-input="run|sprint|left|right"
+//   Touch:    on-screen buttons with data-input="run|sprint|left|right|jump"
 
 export class Input {
   constructor() {
@@ -17,6 +17,7 @@ export class Input {
         if (k === 'KeyC') this.pressed.add('camera');
         if (k === 'KeyP' || k === 'Escape') this.pressed.add('pause');
         if (k === 'Enter') this.pressed.add('skip');
+        if (k === 'Space' || k === 'KeyJ') this.pressed.add('jump');
         this.anyPress = true;
       }
       this.keys.add(k);
@@ -44,6 +45,7 @@ export class Input {
         pointers.add(e.pointerId);
         try { btn.setPointerCapture(e.pointerId); } catch (err) { /* ignore */ }
         this.anyPress = true;
+        if (name === 'jump') this.pressed.add('jump');
         update();
       });
       const up = (e) => {
@@ -61,7 +63,7 @@ export class Input {
     return this.keys.has('KeyW') || this.keys.has('ArrowUp') || this.touch.run > 0;
   }
   get sprint() {
-    return this.keys.has('ShiftLeft') || this.keys.has('ShiftRight') || this.keys.has('Space') || this.touch.sprint > 0;
+    return this.keys.has('ShiftLeft') || this.keys.has('ShiftRight') || this.touch.sprint > 0;
   }
   get left() {
     return this.keys.has('KeyA') || this.keys.has('ArrowLeft') || this.touch.left > 0 ? 1 : 0;

@@ -7,6 +7,7 @@
 import { clamp, wrapAngle } from '../core/utils.js';
 
 const G = 9.81;
+export const JUMP_SPEED = 3.3; // m/s upward: about 0.55 m high, 0.65 s in the air
 
 export class BirdBody {
   constructor(stats, radius, mass) {
@@ -30,6 +31,24 @@ export class BirdBody {
     this.latAcc = 0;
     this.slip = 0;
     this.vF = 0;
+    this.y = 0; // height above the ground (jumping)
+    this.vy = 0;
+    this.landed = false;
+  }
+
+  get onGround() {
+    return this.y <= 0 && this.vy <= 0;
+  }
+
+  get airborne() {
+    return !this.onGround;
+  }
+
+  jump(speed = JUMP_SPEED) {
+    if (!this.onGround) return false;
+    this.vy = speed;
+    this.y = 0.0001;
+    return true;
   }
 
   get fatigueCap() {
@@ -46,6 +65,32 @@ export class BirdBody {
 
     // ---- steering (yaw)
     if (ctrl.desiredHeading != null && !Number.isFinite(ctrl.desiredHeading)) ctrl.desiredHeading = this.h;
+    this.landed = false;
+    // ---- in the air: no push-off and no grip, just momentum and gravity
+    if (this.airborne) {
+      this.vy -= G * dt;
+      this.y += this.vy * dt;
+      this.yawRate *= 1 - Math.min(1, dt * 4);
+      this.h = wrapAngle(this.h + this.yawRate * dt);
+      const drag = 1 - 0.0025 * Math.hypot(this.vx, this.vz) * dt;
+      this.vx *= drag;
+      this.vz *= drag;
+      this.x += this.vx * dt;
+      this.z += this.vz * dt;
+      if (this.y <= 0) {
+        this.y = 0;
+        this.vy = 0;
+        this.landed = true;
+        this.vx *= 0.97; // a little speed is lost on landing
+        this.vz *= 0.97;
+      }
+      this.speed = Math.hypot(this.vx, this.vz);
+      this.vF = this.vx * Math.sin(this.h) + this.vz * Math.cos(this.h);
+      this.accel = 0;
+      this.latAcc = 0;
+      this.slip = 0;
+      return;
+    }
     let fx = Math.sin(this.h), fz = Math.cos(this.h);
     const vF0 = this.vx * fx + this.vz * fz;
     const maxYaw = st.turnRate / (1 + Math.max(0, vF0) * 0.12);

@@ -181,7 +181,32 @@ export class BirdAnimator {
     const subs = Math.min(12, Math.max(1, Math.ceil((Math.max(f, 1.8) * dt) / 0.04)));
     const swingH = legLen * (0.1 + 0.12 * runF) * (gait.bounce > 1.2 ? 1.25 : 1);
     const sub = { x: 0, z: 0, h: 0, vx: st.vx, vz: st.vz, yawRate: st.yawRate };
-    for (let k = 1; k <= subs; k++) {
+    const air = (st.y || 0) > 0.001;
+    if (air) {
+      // tuck both feet up under the body while flying over a barrier
+      const fx = Math.sin(st.h), fz = Math.cos(st.h);
+      const lx = Math.cos(st.h), lz = -Math.sin(st.h);
+      this.feet.forEach((ft, i) => {
+        const w = lg.width * S * (i === 0 ? 1 : -1) * 0.8;
+        ft.planted = false;
+        ft.pos.set(st.x + lx * w + fx * legW * 0.12, legLen * S * 0.32, st.z + lz * w + fz * legW * 0.12);
+        ft.lift.copy(ft.pos);
+        ft.yaw = st.h;
+        ft.curl = 1;
+      });
+      this.wasAir = true;
+    } else if (this.wasAir) {
+      // landing: plant both feet where they are
+      this.wasAir = false;
+      this.feet.forEach((ft) => {
+        ft.planted = true;
+        ft.pos.y = 0;
+        ft.plant.copy(ft.pos);
+      });
+      this.phase = beta * 0.5;
+      if (this.onStep) this.onStep(0, 1);
+    }
+    for (let k = 1; k <= (air ? 0 : subs); k++) {
       const a = k / subs;
       sub.x = lerp(prevX, st.x, a);
       sub.z = lerp(prevZ, st.z, a);
@@ -203,7 +228,8 @@ export class BirdAnimator {
     const sway = Math.cos(TAU * cyc);
 
     // celebration hops / tired
-    if (mode === 'celebrate' && v < 1.2) this.hop = Math.abs(Math.sin(this.time * TAU * 1.5)) * 0.1;
+    if (air) this.hop = st.y / S;
+    else if (mode === 'celebrate' && v < 1.2) this.hop = Math.abs(Math.sin(this.time * TAU * 1.5)) * 0.1;
     else this.hop = damp(this.hop, 0, 10, dt);
     this.stumble = Math.max(0, this.stumble - dt * 2.5);
 
@@ -227,7 +253,7 @@ export class BirdAnimator {
     const toLocal = (wx, wy, wz, out) => {
       const dx = wx - st.x, dz = wz - st.z;
       // inverse yaw rotation
-      out.set((dx * cosH - dz * sinH) * invS, wy * invS - this.hop, (dx * sinH + dz * cosH) * invS);
+      out.set((dx * cosH - dz * sinH) * invS, wy * invS + this.hop, (dx * sinH + dz * cosH) * invS);
       return out;
     };
     for (let i = 0; i < 2; i++) {
@@ -349,12 +375,12 @@ export class BirdAnimator {
     // ------------------------------------------------------------- feathers
     let openT = 0.03 * runF + clamp(Math.abs(st.latAcc) / 5, 0, 0.22) + clamp(st.slip || 0, 0, 1) * 0.3;
     if (st.accel < -2.5) openT += 0.12;
-    if (mode === 'celebrate') openT = 1;
+    if (mode === 'celebrate' || air) openT = 1;
     if (mode === 'tired') openT = 0.07;
     openT += this.stumble * 0.5;
     const open = clamp(this.wingOpen.update(openT, dt), 0, 1);
-    if (mode === 'celebrate') this.flap += dt * TAU * 4.2;
-    const flapAmt = mode === 'celebrate' ? 0.55 + 0.6 * Math.sin(this.flap) : Math.sin(this.time * 24) * this.stumble * 0.5;
+    if (mode === 'celebrate' || air) this.flap += dt * TAU * (air ? 6.5 : 4.2);
+    const flapAmt = mode === 'celebrate' || air ? 0.55 + 0.6 * Math.sin(this.flap) : Math.sin(this.time * 24) * this.stumble * 0.5;
 
     // tail: lags behind body motion and fans when braking
     const bobVel = (bob - this.prevBob) / Math.max(dt, 1e-3);
@@ -410,6 +436,8 @@ export class BirdAnimator {
     fm.instanceMatrix.needsUpdate = true;
 
     // contact shadow follows body
-    m.blob.position.set(0, 0.004 - this.hop, 0.02);
+    m.blob.position.set(0, 0.004, 0.02);
+    const shrink = 1 / (1 + (st.y || 0) * 1.5);
+    m.blob.scale.set(m.blobBase.x * shrink, 1, m.blobBase.z * shrink);
   }
 }

@@ -96,10 +96,7 @@ export class Stadium {
       b.translate(midx, 0.4, midz);
       geos.push(b);
     }
-    // chute end wall
-    const ce = new THREE.BoxGeometry(0.15, 0.8, T.WALL + 0.3);
-    ce.translate(-hL - T.CHUTE - 0.2, 0.4, T.R + T.WALL / 2);
-    geos.push(ce);
+    // (no wall across the end of the 100 m chute: it overlaps the outer lanes of the second bend)
     const ce2 = new THREE.BoxGeometry(T.CHUTE + 0.2, 0.8, 0.15);
     ce2.translate(-hL - T.CHUTE / 2, 0.4, T.R + T.WALL + 0.12);
     geos.push(ce2);

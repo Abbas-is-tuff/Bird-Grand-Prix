@@ -6,16 +6,19 @@ import { AIController } from '../ai/aiController.js';
 import { PlayerController } from '../input/playerController.js';
 import { RACES, DIFFICULTY } from '../data/races.js';
 import { BIRDS } from '../data/roster.js';
+import { placeBarriers, BARRIER_CLEAR } from '../world/barriers.js';
 
 const STEP = 1 / 120;
 const tmp = {};
 
 export class Race extends Emitter {
-  constructor({ scene, input, raceId, playerBirdId, opponentIds, difficulty = 'normal', oppSpeed = null, playerBonus = null }) {
+  constructor({ scene, input, raceId, playerBirdId, opponentIds, difficulty = 'normal', oppSpeed = null, playerBonus = null, drill = null }) {
     super();
     this.scene = scene;
     this.input = input;
-    this.def = RACES[raceId];
+    this.def = typeof raceId === 'object' ? raceId : RACES[raceId];
+    this.drill = drill; // training drill settings (or null in a normal race)
+    this.barrierDists = this.def.barriers || [];
     this.diff = DIFFICULTY[difficulty] || DIFFICULTY.normal;
     this.solo = opponentIds.length === 0;
     this.breakDist = Math.PI * (T.R + measureOffset(1));
@@ -35,6 +38,9 @@ export class Race extends Emitter {
       return r;
     });
     this.player = this.racers[0];
+    for (const r of this.racers) {
+      r.barriers = this.barrierDists.length ? placeBarriers(scene, this.barrierDists, r.lane, this.startPoint(r.lane), this.def.mode) : [];
+    }
     this.racers.sort((a, b) => a.lane - b.lane);
     this.byLane = this.racers.slice();
     this.acc = 0;
@@ -48,7 +54,10 @@ export class Race extends Emitter {
   }
 
   dispose() {
-    for (const r of this.racers) r.dispose();
+    for (const r of this.racers) {
+      for (const b of r.barriers || []) b.dispose();
+      r.dispose();
+    }
     this.racers = [];
   }
 
@@ -94,6 +103,13 @@ export class Race extends Emitter {
     r.prevS = r.pmode === 'straight' ? 0 : stationOf(r.loc, r.measure);
     r.prevProgress = 0;
     r.coolT = 0;
+    for (const b of r.barriers || []) b.reset();
+    r.barriersCleared = 0;
+    r.barrierHits = 0;
+    r.barrierMisses = 0;
+    r.laneTime = 0;
+    r.runTime = 0;
+    r.sprintTime = 0;
     r.controller.newRace?.();
   }
 
@@ -216,8 +232,9 @@ export class Race extends Emitter {
       }
       r.animMode = mode;
       const b = r.body;
-      r.anim.update(dt, { x: b.x, z: b.z, h: b.h, vx: b.vx, vz: b.vz, speed: b.speed, accel: b.accel, latAcc: b.latAcc, yawRate: b.yawRate, slip: b.slip }, mode);
-      r.tag.position.set(b.x, r.tagHeight, b.z);
+      r.anim.update(dt, { x: b.x, z: b.z, h: b.h, vx: b.vx, vz: b.vz, speed: b.speed, accel: b.accel, latAcc: b.latAcc, yawRate: b.yawRate, slip: b.slip, y: b.y }, mode);
+      for (const br of r.barriers) br.update(dt);
+      r.tag.position.set(b.x, r.tagHeight + b.y, b.z);
     }
     this.updateExcitement(dt);
   }
@@ -284,6 +301,14 @@ export class Race extends Emitter {
         r.coolD = clamp(r.loc.d, 0.5, T.EDGE - 0.5);
         this.emit('finish', r);
       }
+      // barriers in your lane: clear them, run around them, or knock them over
+      if (r.barriers.length && !r.finished) this.checkBarriers(r);
+      // training drill bookkeeping
+      if (this.drill && r.isPlayer && !r.finished) {
+        r.runTime += dt;
+        const d = r.loc.d;
+        if (d >= (r.lane - 1) * T.W && d <= r.lane * T.W) r.laneTime += dt;
+      }
       // lane discipline on bends (stepping inside your lane gains distance = disqualified)
       if (!r.finished && !r.dq && r.pmode !== 'straight' && this.laneLocked(r) && r.lane > 1 && r.loc.curv > 0) {
         const inner = (r.lane - 1) * T.W;
@@ -295,6 +320,35 @@ export class Race extends Emitter {
         }
       }
     }
+  }
+
+  checkBarriers(r) {
+    for (const b of r.barriers) {
+      if (b.passed) continue;
+      if (r.prevProgress < b.dist && r.progress >= b.dist) {
+        b.passed = true;
+        const off = Math.abs(r.loc.d - laneCenter(r.lane));
+        if (off > 0.62) {
+          r.barrierMisses++;
+          this.emit('barrierMiss', { racer: r, barrier: b });
+        } else if (r.body.y >= BARRIER_CLEAR) {
+          r.barriersCleared++;
+          this.emit('barrierClear', { racer: r, barrier: b });
+        } else {
+          b.knock();
+          r.barrierHits++;
+          r.body.vx *= 0.5;
+          r.body.vz *= 0.5;
+          r.anim.triggerStumble(1);
+          this.emit('barrierHit', { racer: r, barrier: b });
+        }
+      }
+      break; // only the next barrier can be crossed in one step
+    }
+  }
+
+  nextBarrier(r) {
+    return r.barriers.find((b) => !b.passed) || null;
   }
 
   boundaries() {
@@ -381,7 +435,7 @@ export class Race extends Emitter {
 
   checkEnd() {
     if (this.phase !== 'running') {
-      if (this.phase === 'done' && this.phaseTime > 4.2 && !this.resultsSent) {
+      if (this.phase === 'done' && this.phaseTime > (this.drill ? 1.8 : 4.2) && !this.resultsSent) {
         this.resultsSent = true;
         this.emit('results', this.results());
       }
@@ -416,6 +470,8 @@ export class Race extends Emitter {
   results() {
     const rows = this.racers.map((r) => ({
       racer: r, time: r.finished ? r.finishTime : null, dq: r.dq, reaction: r.reaction, estimated: !!r.estimated,
+      barriers: { total: r.barriers.length, cleared: r.barriersCleared, hits: r.barrierHits, misses: r.barrierMisses },
+      laneFrac: r.runTime > 0 ? r.laneTime / r.runTime : 1, sprintTime: r.sprintTime,
     }));
     rows.sort((a, b) => {
       const ka = a.dq ? 2 : a.time == null ? 1 : 0;

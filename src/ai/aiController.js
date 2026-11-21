@@ -3,6 +3,10 @@
 import { clamp, damp, rand } from '../core/utils.js';
 import { T, laneCenter } from '../world/track.js';
 
+function gauss() {
+  return (Math.random() + Math.random() + Math.random() - 1.5) * 2; // roughly a bell curve, spread 1
+}
+
 const G = 9.81;
 
 export const PERSONALITIES = {
@@ -29,7 +33,14 @@ export class AIController {
     this.newRace();
   }
 
+  // When to take off before a barrier (seconds before reaching it). Skill and personality add error.
+  pickJumpTiming() {
+    const sloppy = 0.06 + (1 - this.diff.smart) * 0.15 + (this.p.surges ? 0.06 : 0) + (this.p === PERSONALITIES.aggressive ? 0.03 : 0);
+    return clamp(0.335 + gauss() * sloppy, 0.08, 0.7);
+  }
+
   newRace() {
+    this.jumpTiming = this.pickJumpTiming();
     const [a, b] = this.p.reaction;
     this.reaction = rand(a, b) + this.diff.reaction + (Math.random() < 0.08 ? rand(0.03, 0.1) : 0);
     this.kicking = false;
@@ -55,6 +66,16 @@ export class AIController {
     if (!r.reacted) {
       r.reacted = true;
       r.reaction = this.reaction;
+    }
+
+    // ---- barriers: take off at the right moment
+    const nb = r.barriers?.length ? race.nextBarrier(r) : null;
+    if (nb && body.onGround) {
+      const ahead = nb.dist - r.progress;
+      if (ahead > 0 && ahead / Math.max(1, body.speed) <= this.jumpTiming) {
+        body.jump();
+        this.jumpTiming = this.pickJumpTiming();
+      }
     }
 
     // ---- pace plan

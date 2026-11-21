@@ -17,6 +17,12 @@ export class PlayerController {
   newRace() {
     this.offset = 0;
     this.dT = laneCenter(this.r.lane);
+    this.jumpQueued = 0;
+  }
+
+  // A jump press is remembered for a moment so a quick tap is never lost.
+  queueJump() {
+    this.jumpQueued = 0.15;
   }
 
   update(dt) {
@@ -25,6 +31,18 @@ export class PlayerController {
     const inp = this.input;
     let throttle = inp.sprint ? 1 : inp.run ? race.cruiseFor(r) : 0;
     if (r.dq === 'False start') throttle = 0;
+    const drill = race.drill;
+    if (drill?.maxEffort != null) {
+      if (inp.sprint) r.sprintTime += dt;
+      throttle = Math.min(throttle, drill.maxEffort);
+    }
+    if (this.jumpQueued > 0) {
+      this.jumpQueued -= dt;
+      if (race.phase === 'running' && r.body.onGround && r.body.jump()) {
+        this.jumpQueued = 0;
+        race.emit('jump', r);
+      }
+    }
     r.ctrl.throttle = throttle;
     if (!r.reacted && throttle > 0) {
       r.reacted = true;
@@ -37,7 +55,7 @@ export class PlayerController {
     }
 
     const steer = inp.right - inp.left; // +1 = right = outward
-    if (settings.laneAssist) {
+    if (settings.laneAssist && !drill?.manualSteer) {
       if (race.laneLocked(r)) {
         this.offset = damp(this.offset, steer * 0.42, 5, dt);
         this.dT = laneCenter(r.lane) + this.offset;

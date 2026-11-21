@@ -526,6 +526,7 @@ export function createBirdModel(bird, bandColor = '#ffcc00') {
   blob.position.y = 0.004;
   blob.renderOrder = -1;
   root.add(blob);
+  const blobBase = blob.scale.clone();
 
   // ---- rest numbers the animator needs
   root.updateMatrixWorld(true);
@@ -534,7 +535,7 @@ export function createBirdModel(bird, bandColor = '#ffcc00') {
 
   const model = {
     bird, species: sp, shape, pal, S, root, bodyPivot, bodyFrame, bodyMesh, head, headMesh,
-    neck, neckBaseLocal, beakLPivot, eyes, featherMesh, feathers, legMesh, blob,
+    neck, neckBaseLocal, beakLPivot, eyes, featherMesh, feathers, legMesh, blob, blobBase,
     tailBase, tailFan,
     legs: { l1, l2, toeH, kneeOff, hipY, hips, toeAngles, perLeg, toeLen: L.toeLen, thick: L.thick, width: L.width },
     rest: { hipY, headRest, headOffset: V(...shape.head), neckBaseRest },

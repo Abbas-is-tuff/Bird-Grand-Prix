@@ -126,33 +126,61 @@ export class Career {
   }
 
   // ------------------------------------------------------------------ training
-  train(typeId, coach = false) {
-    const tr = TRAINING[typeId];
-    if (!tr) return { error: 'Unknown training.' };
+  // Can this training session start? (slots and money)
+  canTrain(typeId, coach = false) {
+    if (!TRAINING[typeId]) return { error: 'Unknown training.' };
     if (this.slotsLeft <= 0) return { error: 'No training sessions left this week. Race or skip to next week.' };
     const cost = coach ? this.price('coach') : 0;
     if (this.money < cost) return { error: `Not enough money for a coach ($${cost}).` };
-    this.money -= cost;
+    return { ok: true, cost };
+  }
+
+  // Pay for the session and remember it while the drill is being played.
+  startTraining(typeId, coach = false) {
+    const ok = this.canTrain(typeId, coach);
+    if (ok.error) return ok;
+    this.money -= ok.cost;
+    this.pendingTraining = { type: typeId, coach };
+    this.save();
+    return { ok: true };
+  }
+
+  // Apply the result of the drill. mult comes from your grade (0.5 for D … 1.5 for S, 0 if abandoned).
+  finishTraining(mult = 1, grade = 'B') {
+    const pt = this.pendingTraining;
+    if (!pt) return null;
+    this.pendingTraining = null;
+    const { type: typeId, coach } = pt;
+    const tr = TRAINING[typeId];
     this.slotsUsed++;
     this.stats.trainingSessions++;
     let result;
+    const quit = mult <= 0;
     if (!tr.stat) {
       const before = this.fatigue;
-      this.fatigue = clamp(this.fatigue + tr.fatigue * (coach ? 1.4 : 1), 0, 100);
+      this.fatigue = clamp(this.fatigue + tr.fatigue * (coach ? 1.4 : 1) * (quit ? 0 : mult), 0, 100);
       result = { type: typeId, fatigue: Math.round(this.fatigue - before) };
     } else {
       const cur = this.bonus[tr.stat];
       const eff = clamp(1.1 - this.fatigue / 100, 0.25, 1);
-      const gain = tr.gain * (1 - cur / tr.cap) * eff * (coach ? 1.6 : 1) * rand(0.85, 1.15);
+      const gain = quit ? 0 : tr.gain * (1 - cur / tr.cap) * eff * (coach ? 1.6 : 1) * mult;
       this.bonus[tr.stat] = Math.min(tr.cap, cur + gain);
       const before = this.fatigue;
-      this.fatigue = clamp(this.fatigue + tr.fatigue * (coach ? 1.15 : 1), 0, 100);
+      this.fatigue = clamp(this.fatigue + tr.fatigue * (coach ? 1.15 : 1) * (quit ? 0.5 : 1), 0, 100);
       result = { type: typeId, stat: tr.stat, label: tr.label, gain, fatigue: Math.round(this.fatigue - before), tired: eff < 0.6, nearCap: cur / tr.cap > 0.8 };
     }
-    this.trainingLog.unshift({ season: this.season, week: this.week, type: typeId, coach, gain: result.gain || 0, fatigue: result.fatigue });
+    result.grade = quit ? '—' : grade;
+    this.trainingLog.unshift({ season: this.season, week: this.week, type: typeId, coach, gain: result.gain || 0, fatigue: result.fatigue, grade: result.grade });
     this.trainingLog = this.trainingLog.slice(0, 30);
     this.save();
     return result;
+  }
+
+  // Instant training (used by automatic tests): start + finish with an average grade.
+  train(typeId, coach = false) {
+    const r = this.startTraining(typeId, coach);
+    if (r.error) return r;
+    return this.finishTraining(1, 'B');
   }
 
   physio() {

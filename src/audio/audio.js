@@ -205,6 +205,15 @@ export class AudioEngine {
     this.tone({ freq: 110, dur: 0.1, vol: vol * 0.5, slideTo: 60 });
   }
 
+  // A barrier being knocked over: plastic/metal clatter.
+  clatter(vol = 0.4) {
+    if (!this.ready) return;
+    this.noiseHit({ dur: 0.18, freq: 2600, q: 0.6, type: 'highpass', vol: vol * 0.6 });
+    this.noiseHit({ dur: 0.1, freq: 3400, q: 2, vol: vol * 0.4, when: 0.12 });
+    this.tone({ freq: 620, dur: 0.12, vol: vol * 0.15, type: 'triangle', slideTo: 380 });
+    this.tone({ freq: 910, dur: 0.1, vol: vol * 0.1, type: 'triangle', when: 0.1, slideTo: 700 });
+  }
+
   // Original little victory tune.
   fanfare() {
     if (!this.ready) return;

@@ -51,9 +51,12 @@ export class Menus {
   }
 
   preparePause() {
-    const career = !!this.game.lastOpts?.careerEventId && !this.game.careerRecorded;
-    $('pause-restart').classList.toggle('hidden', career);
-    $('pause-quit').textContent = career ? 'WITHDRAW (counts as DNF)' : 'QUIT TO MENU';
+    const o = this.game.lastOpts;
+    const live = !this.game.careerRecorded;
+    const career = !!o?.careerEventId && live;
+    const drill = !!o?.drill && live;
+    $('pause-restart').classList.toggle('hidden', career || drill || !!o?.careerEventId || !!o?.drill);
+    $('pause-quit').textContent = drill ? 'STOP DRILL (session is lost)' : career ? 'WITHDRAW (counts as DNF)' : o?.drill || o?.careerEventId ? 'BACK TO CAREER' : 'QUIT TO MENU';
   }
 
   toast(text, dur = 2.4) {
@@ -241,9 +244,28 @@ export class Menus {
     return `<div class="career-sum">${lines.join('<br>')}</div>`;
   }
 
+  showDrillResults(drill, sum, tr, career) {
+    $('results').classList.add('career');
+    document.querySelector('#results [data-action=career-continue]').textContent = 'BACK TO TRAINING';
+    $('res-title').textContent = `TRAINING — ${drill.name.toUpperCase()}`;
+    const lines = sum.lines.slice();
+    if (tr) {
+      if (tr.stat) lines.push(`<span class="big">${tr.gain >= 0 ? '+' : ''}${(tr.gain * 100).toFixed(2)}%</span> ${tr.label}${tr.tired ? ' (your bird was tired, so it learned less)' : ''}${tr.nearCap ? ' (close to the limit)' : ''}`);
+      else lines.push(`<span class="big">+${-tr.fatigue}</span> freshness`);
+    }
+    if (career) lines.push(`Freshness now ${career.freshness}% • training sessions left this week: ${career.slotsLeft}`);
+    $('res-banner').innerHTML = `GRADE <span style="color:${sum.color};font-size:1.5em">${sum.grade}</span> <span style="font-size:0.6em;opacity:.7">${sum.score}/100</span>
+      <div class="sub">Better grades give bigger improvements: S ×1.5 • A ×1.25 • B ×1 • C ×0.75 • D ×0.5</div>
+      <div class="career-sum">${lines.join('<br>')}</div>`;
+    $('res-table').innerHTML = '';
+    this.show('results');
+  }
+
   showResults(res, pbInfo, careerSum = null) {
     const p = res.player;
     $('results').classList.toggle('career', !!careerSum);
+    const cont = document.querySelector('#results [data-action=career-continue]');
+    if (cont) cont.textContent = 'CONTINUE CAREER';
     let banner;
     if (p.dq) banner = `DISQUALIFIED<div class="sub">${p.dq === 'False start' ? 'Two false starts. Wait for the gun!' : 'You stepped inside your lane on a bend.'}</div>`;
     else if (p.time == null) banner = 'DID NOT FINISH<div class="sub">Hold RUN or SPRINT to race.</div>';
