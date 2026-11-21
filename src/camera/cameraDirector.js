@@ -87,9 +87,11 @@ export class CameraDirector {
 
     switch (mode) {
       case 'menu': {
-        const a = this.time * 0.22;
-        const r = (3.0 + sz * 0.6) * far;
-        dp.set(P.x + Math.cos(a) * r, 0.75 + 0.55 * sz, P.z + Math.sin(a) * r);
+        const mf = this.menuFront;
+        const a = mf ? Math.atan2(mf.z, mf.x) - 0.5 + 0.55 * Math.sin(this.time * 0.35) : this.time * 0.22;
+        const zoom = this.menuZoom || 1;
+        const r = (3.0 + sz * 0.6) * far * zoom;
+        dp.set(P.x + Math.cos(a) * r, (0.75 + 0.55 * sz) * (0.5 + 0.5 * zoom), P.z + Math.sin(a) * r);
         dl.set(P.x, 0.5 * sz, P.z);
         fov = portrait ? 62 : 42;
         lambda = 3;

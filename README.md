@@ -1,7 +1,7 @@
-# BIRD GRAND PRIX — Version 0.4
+# BIRD GRAND PRIX — Version 0.5
 
 A 3D bird ground-racing game that runs in a web browser (PC, iPad, phone).
-This version covers **Phase 1 (foundation), Phase 2 (racing), Phase 3 (AI) and Phase 4 (career & training)** of the plan, plus **6 stadiums and career travel**.
+This version covers **Phase 1 (foundation), Phase 2 (racing), Phase 3 (AI) and Phase 4 (career & training)** of the plan, plus **6 stadiums and career travel**, and **Phase 5 (garage & customisation)**.
 
 **Play it online:** once GitHub Pages is switched on (see below) the game is at
 `https://abbas-is-tuff.github.io/Bird-Grand-Prix/`
@@ -27,6 +27,18 @@ This version covers **Phase 1 (foundation), Phase 2 (racing), Phase 3 (AI) and P
 
 | Time trials | Quick Race → Rivals → **Time trial**: race alone against the clock. |
 | Barriers | Bird-sized hurdles. **JUMP** just before each one. Clear it and you keep your speed; hit it and it falls over and you lose half your speed. **100 m Barriers** is a race type (also in career from Amateur level). |
+
+### Phase 5: Garage
+
+Open **GARAGE** from the main menu (or *OPEN GARAGE* on the Career home screen).
+
+| Tab | What you can do |
+|---|---|
+| LOOK | Pick the colour of your bird's **leg band**, and an **accessory**: sweatband, racing cap, goggles, scarf, or a race vest with the bird's number. Pick its colour from 26 swatches. Looks are only for fun (they don't change speed) and your bird wears them in every race. |
+| DESIGN | **Hatch a brand-new bird**: name it, choose the species (decides body shape, running style and stats), colour its body, head, face, cheeks, crest, wings, tail, beak, feet and eyes (swatches or 🎨 any colour), and pick its racing style. Your designed birds race in Quick Race, can start a Career, and sometimes turn up as rivals. You can edit or delete them later. Your real birds (Abbas, Cookie, Snowflake, Silver, Pikachu) keep their real colours. |
+| GEAR | Career only. Spend prize money on four upgrade lines, each with 3 levels: 🥣 racing diet (stamina), 🦶 claw & foot care (cornering grip), 🪶 feather care (top speed), 🔥 warm-up kit (acceleration). Higher levels unlock at Amateur and Professional. Upgrades last for the whole career. |
+
+Trophy rewards: win a **season title** to unlock the gold leg band, and win a **championship final** to unlock the champion crown.
 
 ### Stadiums
 
@@ -86,7 +98,7 @@ Careers saved before version 0.4 still load; your bird simply starts at home in 
 
 Leaving a career race through the pause menu counts as a DNF (did not finish), so you can't restart a race you're losing.
 
-**Not in this version yet (coming in later phases):** garage/customisation, obstacle races, weather, online multiplayer. Their menu buttons are shown as locked.
+**Not in this version yet (coming in later phases):** obstacle races, weather, online multiplayer. Their menu buttons are shown as locked.
 
 ---
 
@@ -155,6 +167,7 @@ bird-grand-prix/
     ├── core/game.js      the main loop: menus ⇄ races, camera, sound, scoreboard
     ├── core/settings.js  settings and personal bests (saved on your device)
     ├── core/utils.js     small maths helpers
+    ├── core/garage.js    ★ garage: accessories, colours, your designed birds (saved on your device)
     ├── data/species.js   ★ the 6 species: speed, stamina, grip, body shape, gait
     ├── data/roster.js    ★ every bird: name, number, colours, personality
     ├── data/races.js     race distances, pace, difficulty levels
@@ -179,7 +192,7 @@ bird-grand-prix/
     ├── input/playerController.js  your bird's controls + lane assist
     ├── camera/cameraDirector.js   the six cameras
     ├── audio/audio.js        all sounds
-    └── ui/                   HUD, menus, career screens, bird portraits
+    └── ui/                   HUD, menus, career screens, garage screen, bird portraits
 ```
 
 ### Easy things to try changing yourself
@@ -187,6 +200,7 @@ bird-grand-prix/
 * **A bird's colours:** open `src/data/roster.js`, find the bird, change a colour code like `body: '#5fae3e'`. Save, and refresh the browser.
 * **Add a new bird:** copy one whole `{ ... }` block in `roster.js`, give it a new `id`, `name` and `number`, and pick a `species`.
 * **Make a species faster:** in `src/data/species.js` raise `topSpeed` a little (e.g. 8.9 → 9.1).
+* **More accessory colours:** add colour codes to `SWATCHES` in `src/core/garage.js`.
 * **Change a stadium:** in `src/data/venues.js` change a venue's `track: { color: '#c2452f' }` to repaint its track, or `seats` to change the seat colour.
 * **Cheaper travel:** in `src/career/careerData.js` lower the numbers in `TRAVEL_MODES` or `HOTEL_PER_WEEK`.
 * **Make the career easier:** in `src/career/careerData.js` lower the `oppSpeed` numbers for a level, or raise `START_MONEY`.

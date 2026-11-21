@@ -7,7 +7,7 @@ import { clamp, rand, shuffle, pick } from '../core/utils.js';
 import {
   TIERS, TRAINING, EXTRAS, SEASON_WEEKS, START_MONEY, TRAINING_SLOTS, PRIZE_SPLIT, RP_TABLE,
   RACE_FATIGUE, SPONSOR_NAMES, MILESTONES, TIER_VENUES, CUP_VENUES, TRAVEL_MODES, travelScale,
-  HOTEL_PER_WEEK, HOME_REST_BONUS, JET_LAG_PENALTY, HOME_CROWD_BONUS, TRAVEL_EVENTS, KM_PER_UNIT,
+  HOTEL_PER_WEEK, HOME_REST_BONUS, GEAR, JET_LAG_PENALTY, HOME_CROWD_BONUS, TRAVEL_EVENTS, KM_PER_UNIT,
 } from './careerData.js';
 import { VENUES, HOME_VENUE, venueDistance } from '../data/venues.js';
 
@@ -41,7 +41,7 @@ export class Career {
       trainingLog: [], history: [], trophies: [], milestones: [], news: [],
       stats: { races: 0, wins: 0, podiums: 0, earnings: 0, dnf: 0, dq: 0, best: {}, winsBy: {}, seasons: 1, trainingSessions: 0 },
       standings: {}, sponsor: null, offers: [], events: [], seasonLog: [],
-      location: HOME_VENUE, jetLag: 0, travelLog: [],
+      location: HOME_VENUE, jetLag: 0, travelLog: [], gear: { diet: 0, claws: 0, feathers: 0, warmup: 0 },
       visited: { [HOME_VENUE]: { visits: 1, races: 0, wins: 0, best: {} } },
     });
     c.startSeason();
@@ -58,6 +58,8 @@ export class Career {
       if (!d || d.v !== 1 || !BIRDS[d.birdId]) return null;
       const c = new Career(d);
       // careers saved before travel existed: start them at home
+      c.gear ||= { diet: 0, claws: 0, feathers: 0, warmup: 0 };
+      for (const b of c.league) c.standings[b.id] ||= { rp: 0, races: 0, wins: 0, podiums: 0 };
       if (!c.location || !VENUES[c.location]) {
         c.location = HOME_VENUE;
         c.jetLag = 0;
@@ -96,7 +98,7 @@ export class Career {
   // ------------------------------------------------------------------ seasons & events
   startSeason() {
     this.standings = {};
-    for (const b of ROSTER) this.standings[b.id] = { rp: 0, races: 0, wins: 0, podiums: 0 };
+    for (const b of this.league) this.standings[b.id] = { rp: 0, races: 0, wins: 0, podiums: 0 };
     this.week = 1;
     this.generateEvents();
     this.makeOffers();
@@ -131,7 +133,7 @@ export class Career {
 
   makeEvent(name, raceId, time, final, i, venue = HOME_VENUE) {
     const t = this.tier;
-    const others = ROSTER.filter((b) => b.id !== this.birdId).map((b) => b.id);
+    const others = this.league.filter((b) => b.id !== this.birdId).map((b) => b.id);
     let field;
     if (final) {
       field = others.sort((a, b) => this.standings[b].rp - this.standings[a].rp).slice(0, 5);
@@ -233,14 +235,39 @@ export class Career {
   }
 
   // What training + tiredness do to your bird on race day.
+  // Your league: all the game's birds plus your own (if you race with a bird you designed).
+  get league() {
+    return ROSTER.filter((b) => !b.custom || b.id === this.birdId);
+  }
+
+  gearBonus(stat) {
+    let v = 0;
+    for (const [id, g] of Object.entries(GEAR)) if (g.stat === stat) v += g.levels[this.gear?.[id] || 0].bonus;
+    return v;
+  }
+
+  buyGear(id) {
+    const g = GEAR[id];
+    const lv = (this.gear[id] || 0) + 1;
+    const next = g?.levels[lv];
+    if (!next) return { error: 'Already the best.' };
+    if (this.tierIndex < next.minTier) return { error: `Needs ${TIERS[next.minTier].name} level.` };
+    if (this.money < next.cost) return { error: `You need $${next.cost}.` };
+    this.money -= next.cost;
+    this.gear[id] = lv;
+    this.addNews(`${this.bird.name} gets new gear: ${next.name}.`);
+    this.save();
+    return { ok: true, item: next };
+  }
+
   raceModifiers() {
     const pen = Math.max(0, this.fatigue - 35) * 0.0012 + (this.jetLag > 0 ? JET_LAG_PENALTY : 0);
     const home = this.location === HOME_VENUE ? HOME_CROWD_BONUS : 0;
     return {
-      topSpeed: this.bonus.topSpeed - pen + home,
-      accel: this.bonus.accel - pen,
-      staminaCap: this.bonus.staminaCap,
-      grip: this.bonus.grip,
+      topSpeed: this.bonus.topSpeed - pen + home + this.gearBonus('topSpeed'),
+      accel: this.bonus.accel - pen + this.gearBonus('accel'),
+      staminaCap: this.bonus.staminaCap + this.gearBonus('staminaCap'),
+      grip: this.bonus.grip + this.gearBonus('grip'),
       startStamina: 1 - Math.max(0, this.fatigue - 50) / 200,
     };
   }
@@ -442,7 +469,7 @@ export class Career {
     const t = this.tier;
     const final = this.isFinalWeek;
     // everyone else races somewhere this week
-    for (const b of ROSTER) {
+    for (const b of this.league) {
       if (ran.has(b.id)) continue;
       const pl = this.simulatedPlace(b.id);
       const s = this.standings[b.id];
@@ -491,7 +518,7 @@ export class Career {
   }
 
   standingsTable() {
-    return ROSTER.map((b) => ({ id: b.id, name: b.name, species: SPECIES[b.species].name, isPlayer: b.id === this.birdId, ...this.standings[b.id] }))
+    return this.league.map((b) => ({ id: b.id, name: b.name, species: SPECIES[b.species].name, isPlayer: b.id === this.birdId, ...this.standings[b.id] }))
       .sort((a, b) => b.rp - a.rp || b.wins - a.wins || a.name.localeCompare(b.name));
   }
 
@@ -575,4 +602,4 @@ export class Career {
   }
 }
 
-export { TIERS, TRAINING, EXTRAS, SEASON_WEEKS, TRAVEL_MODES };
+export { TIERS, TRAINING, EXTRAS, SEASON_WEEKS, TRAVEL_MODES, GEAR };

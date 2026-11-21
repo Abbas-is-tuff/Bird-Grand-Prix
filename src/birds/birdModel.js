@@ -2,6 +2,7 @@
 // Body/head are smooth feathered shapes; wing, tail and crest feathers are INDIVIDUAL feathers
 // (drawn with one InstancedMesh so they are cheap) that the animator can move one by one.
 import * as THREE from 'three';
+import { getLook } from '../core/garage.js';
 import { featherTextures, vaneTexture, scaleTexture, blobTexture } from '../world/textures.js';
 import { SPECIES } from '../data/species.js';
 import { smoothstep, mulberry32 } from '../core/utils.js';
@@ -259,6 +260,8 @@ const V = (x, y, z) => new THREE.Vector3(x, y, z);
 // ---------------------------------------------------------------------------
 export function createBirdModel(bird, bandColor = '#ffcc00') {
   const A = sharedAssets();
+  const look = getLook(bird.id);
+  if (look.band) bandColor = look.band;
   const sp = SPECIES[bird.species];
   const shape = sp.shape;
   const pal = makePalette(bird.colors);
@@ -528,6 +531,11 @@ export function createBirdModel(bird, bandColor = '#ffcc00') {
   root.add(blob);
   const blobBase = blob.scale.clone();
 
+  // ---- garage accessory (sweatband, cap, goggles, scarf, vest, crown)
+  if (look.acc && look.acc !== 'none') {
+    addAccessory(look, { head, hr, bodyFrame, shape, neckBaseLocal, track, number: bird.number, er: hr * (sp.size < 0.8 ? 0.19 : 0.16) });
+  }
+
   // ---- rest numbers the animator needs
   root.updateMatrixWorld(true);
   const neckBaseRest = neckBaseLocal.clone().applyMatrix4(bodyFrame.matrix).applyMatrix4(bodyPivot.matrix);
@@ -547,4 +555,138 @@ export function createBirdModel(bird, bandColor = '#ffcc00') {
     },
   };
   return model;
+}
+
+// ---------------------------------------------------------------------------
+// Garage accessories. Built from simple shapes; they follow the head or body.
+function vestTexture(color, number) {
+  const c = document.createElement('canvas');
+  c.width = 256; c.height = 128;
+  const g = c.getContext('2d');
+  g.fillStyle = color;
+  g.fillRect(0, 0, 256, 128);
+  g.fillStyle = 'rgba(255,255,255,0.85)';
+  g.fillRect(0, 10, 256, 7);
+  g.fillRect(0, 111, 256, 7);
+  g.fillStyle = '#ffffff';
+  g.fillRect(80, 22, 96, 84);
+  g.fillStyle = '#111111';
+  g.font = 'bold 64px Arial, sans-serif';
+  g.textAlign = 'center';
+  g.textBaseline = 'middle';
+  g.fillText(String(number), 128, 66);
+  const t = new THREE.CanvasTexture(c);
+  t.colorSpace = THREE.SRGBColorSpace;
+  return t;
+}
+
+function addAccessory(look, k) {
+  const { head, hr, bodyFrame, shape, neckBaseLocal, track } = k;
+  const color = new THREE.Color(look.accColor || '#e0392b');
+  const mat = track(new THREE.MeshStandardMaterial({ color, roughness: 0.75 }));
+  const mesh = (geo, m = mat) => {
+    const o = new THREE.Mesh(track(geo), m);
+    o.castShadow = true;
+    return o;
+  };
+  switch (look.acc) {
+    case 'headband': {
+      const band = mesh(new THREE.TorusGeometry(hr * 0.9, hr * 0.11, 8, 28));
+      band.rotation.x = Math.PI / 2 - 0.28;
+      band.position.y = hr * 0.42;
+      band.scale.set(1, 1.1, 1);
+      head.add(band);
+      break;
+    }
+    case 'cap': {
+      const dome = mesh(new THREE.SphereGeometry(hr * 1.04, 22, 10, 0, Math.PI * 2, 0, Math.PI * 0.37));
+      dome.position.y = hr * 0.06;
+      dome.rotation.x = -0.12;
+      const visor = mesh(new THREE.CylinderGeometry(hr * 0.66, hr * 0.66, hr * 0.06, 22, 1, false, -Math.PI / 2, Math.PI));
+      visor.position.set(0, hr * 0.5, hr * 0.42);
+      visor.rotation.x = 0.18;
+      visor.scale.z = 1.25;
+      const button = mesh(new THREE.SphereGeometry(hr * 0.1, 8, 6));
+      button.position.y = hr * 1.07;
+      head.add(dome, visor, button);
+      break;
+    }
+    case 'goggles': {
+      const rim = mat;
+      const lens = track(new THREE.MeshStandardMaterial({ color: '#2a4a6a', roughness: 0.05, metalness: 0.5, transparent: true, opacity: 0.75 }));
+      for (const s of [1, -1]) {
+        const dir = new THREE.Vector3(0.62 * s, 0.22, 0.45).normalize();
+        const g = new THREE.Group();
+        g.position.copy(dir).multiplyScalar(hr * 0.9 + k.er * 1.05);
+        g.position.x *= 0.92;
+        g.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), dir);
+        const ring = mesh(new THREE.TorusGeometry(k.er * 1.5, k.er * 0.38, 8, 20), rim);
+        const glass = mesh(new THREE.CircleGeometry(k.er * 1.45, 20), lens);
+        glass.position.z = -k.er * 0.05;
+        g.add(ring, glass);
+        head.add(g);
+      }
+      const strap = mesh(new THREE.TorusGeometry(hr * 0.98, hr * 0.06, 6, 28, Math.PI * 1.1));
+      strap.rotation.set(Math.PI / 2, 0, Math.PI * 0.95);
+      strap.scale.set(1, 1.05, 1);
+      strap.position.y = hr * 0.26;
+      head.add(strap);
+      break;
+    }
+    case 'crown': {
+      const gold = track(new THREE.MeshStandardMaterial({ color: '#e8b923', metalness: 0.85, roughness: 0.3 }));
+      const ring = mesh(new THREE.CylinderGeometry(hr * 0.42, hr * 0.48, hr * 0.28, 18, 1, true), gold);
+      ring.material.side = THREE.DoubleSide;
+      ring.position.y = hr * 0.98;
+      head.add(ring);
+      const gem = track(new THREE.MeshStandardMaterial({ color: '#d61f3c', roughness: 0.2, metalness: 0.2 }));
+      for (let i = 0; i < 6; i++) {
+        const a = (i / 6) * Math.PI * 2;
+        const spike = mesh(new THREE.ConeGeometry(hr * 0.09, hr * 0.26, 6), gold);
+        spike.position.set(Math.sin(a) * hr * 0.42, hr * 1.24, Math.cos(a) * hr * 0.42);
+        const jewel = mesh(new THREE.SphereGeometry(hr * 0.045, 6, 4), gem);
+        jewel.position.set(Math.sin(a) * hr * 0.465, hr * 0.98, Math.cos(a) * hr * 0.465);
+        head.add(spike, jewel);
+      }
+      break;
+    }
+    case 'scarf': {
+      const rz = shape.body[2];
+      const dir = new THREE.Vector3(0, 1, 0.5).normalize();
+      const loop = mesh(new THREE.TorusGeometry(hr * 0.78, hr * 0.28, 10, 26));
+      loop.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), dir);
+      loop.position.copy(neckBaseLocal).addScaledVector(dir, -hr * 0.02);
+      const knot = mesh(new THREE.SphereGeometry(hr * 0.24, 10, 8));
+      knot.position.copy(neckBaseLocal).add(new THREE.Vector3(hr * 0.22, -hr * 0.12, hr * 0.78));
+      const tailGeo = new THREE.BoxGeometry(hr * 0.34, hr * 0.95, hr * 0.09);
+      const end = mesh(tailGeo);
+      end.position.set(hr * 0.26, neckBaseLocal.y - hr * 0.62, Math.max(neckBaseLocal.z + hr * 0.7, rz * 0.92));
+      end.rotation.set(-0.35, 0, 0.12);
+      const end2 = mesh(tailGeo);
+      end2.position.set(hr * 0.02, neckBaseLocal.y - hr * 0.72, Math.max(neckBaseLocal.z + hr * 0.66, rz * 0.9));
+      end2.rotation.set(-0.3, 0, -0.08);
+      bodyFrame.add(loop, knot, end, end2);
+      break;
+    }
+    case 'vest': {
+      // a patch of the body shape, a little bigger, covering the chest, with your race number
+      const [rx, ry, rz] = shape.body;
+      const g = new THREE.SphereGeometry(1, 28, 18, Math.PI / 2 - 0.95, 1.9, 0.98, 1.3);
+      const p = g.attributes.position;
+      for (let i = 0; i < p.count; i++) {
+        const x = p.getX(i), y = p.getY(i), z = p.getZ(i);
+        const kk = z < 0 ? 1 - 0.42 * Math.pow(-z, 1.6) : 1 - 0.1 * z * z;
+        let yy = y * ry * kk;
+        if (y < 0 && z > -0.3) yy *= 1.07;
+        if (y > 0) yy *= 0.96;
+        const f = 1.045;
+        p.setXYZ(i, x * rx * kk * f, yy * f, z * rz * f);
+      }
+      g.computeVertexNormals();
+      const vm = track(new THREE.MeshStandardMaterial({ map: track(vestTexture('#' + color.getHexString(), k.number)), roughness: 0.8, side: THREE.DoubleSide }));
+      const vest = mesh(g, vm);
+      bodyFrame.add(vest);
+      break;
+    }
+  }
 }

@@ -311,3 +311,29 @@ body.no-touch #hint { bottom: calc(90px + var(--safe-b)); }
 
 .worldmap { width: 100%; max-height: 52vh; display: block; border-radius: 12px; border: 1px solid var(--line); font-family: -apple-system, Arial, sans-serif; }
 .worldmap .pin:hover circle { filter: brightness(1.3); }
+
+/* ---- Garage (Phase 5) */
+#garage { justify-content: flex-end; }
+.garage-birds { display: flex; gap: 8px; padding: 10px 12px 4px; overflow-x: auto; -webkit-overflow-scrolling: touch; touch-action: pan-x; scrollbar-width: none; }
+.garage-birds::-webkit-scrollbar { display: none; }
+.gbird { flex: 0 0 auto; width: 78px; appearance: none; border: 2px solid var(--line); background: var(--panel2); color: var(--text); border-radius: 12px; padding: 4px 4px 6px; cursor: pointer; position: relative; display: flex; flex-direction: column; align-items: center; gap: 2px; font-family: var(--display); font-weight: 800; font-size: 12px; }
+.gbird img, .gbird .swatch { width: 62px; height: 62px; border-radius: 9px; background: #1a2a4a; object-fit: cover; }
+.gbird span { max-width: 70px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.gbird i { position: absolute; top: 3px; right: 3px; font-style: normal; font-size: 9px; background: var(--gold); color: #1d1400; border-radius: 5px; padding: 1px 4px; }
+.gbird.sel { border-color: var(--gold); box-shadow: 0 0 0 2px rgba(255,201,60,0.25); }
+.gbird.add b { display: flex; width: 62px; height: 62px; align-items: center; justify-content: center; font-size: 30px; border-radius: 9px; border: 2px dashed var(--line); color: var(--gold); }
+.swatches { display: flex; flex-wrap: wrap; gap: 7px; }
+.sw { width: 34px; height: 34px; border-radius: 50%; border: 2px solid rgba(255,255,255,0.25); cursor: pointer; padding: 0; position: relative; display: flex; align-items: center; justify-content: center; font-size: 15px; background: var(--panel2); }
+.sw.sel { border-color: #fff; box-shadow: 0 0 0 3px var(--gold); }
+.sw.picker { overflow: hidden; background: conic-gradient(#f44, #fd4, #4d4, #4df, #44f, #f4f, #f44); }
+.sw.picker input { position: absolute; inset: 0; opacity: 0; width: 100%; height: 100%; cursor: pointer; }
+.sw.locked { font-size: 13px; }
+.acc-seg button.lockd { opacity: 0.55; }
+.groups .dotc { display: inline-block; width: 12px; height: 12px; border-radius: 50%; margin-right: 6px; vertical-align: -1px; border: 1px solid rgba(255,255,255,0.4); }
+.gname { width: 100%; font: 800 18px var(--display); padding: 9px 12px; border-radius: 9px; border: 1px solid var(--line); background: var(--panel2); color: var(--text); }
+.muted.small { font-size: 12px; }
+.ccard.gear .pips { display: flex; gap: 4px; }
+.ccard.gear .pips i { width: 14px; height: 8px; border-radius: 3px; background: rgba(255,255,255,0.15); }
+.ccard.gear .pips i.on { background: var(--gold); }
+.ccard.gear .eh { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+#garage .career-panel { width: min(640px, 100%); }

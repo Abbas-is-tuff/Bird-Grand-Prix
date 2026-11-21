@@ -1,4 +1,5 @@
 // Bird Grand Prix - entry point. Starts the game and shows any start-up error on screen.
+import './core/garage.js'; // loads your designed birds before anything else
 import { Game } from './core/game.js';
 
 function showError(err) {

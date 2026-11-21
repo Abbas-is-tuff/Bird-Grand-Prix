@@ -113,6 +113,9 @@ export class CareerUI {
         g.startCareerRace(r.event);
         break;
       }
+      case 'garage':
+        g.garageUI.open(c.birdId, 'gear', 'career');
+        break;
       case 'mapsel':
         this.mapSel = v;
         this.render();
@@ -271,7 +274,7 @@ export class CareerUI {
         <h4>${t.icon} ${t.name} level</h4>
         <div class="muted">${t.blurb}</div>
         <div class="kv" style="margin-top:8px">
-          <span>Season standing</span><b>${ordinal(rank)} of ${ROSTER.length}</b>
+          <span>Season standing</span><b>${ordinal(rank)} of ${c.league.length}</b>
           <span>Ranking points</span><b>${me.rp}</b>
           <span>Week</span><b>${c.week} of ${SEASON_WEEKS}</b>
         </div>
@@ -292,6 +295,11 @@ export class CareerUI {
         <h4>📍 ${VENUES[c.location].name}</h4>
         <div class="muted">${VENUES[c.location].city}${c.location === HOME_VENUE ? ' — home sweet home. You recover faster here and the home crowd gives you a boost.' : ` — away from home. Hotel costs are paid every week you stay.`}${c.jetLag ? ' <b>Jet lag:</b> −3% in your next race.' : ''}</div>
         <div class="cbtns"><button class="btn" data-c="tab" data-v="travel">OPEN MAP</button></div>
+      </div>
+      <div class="ccard">
+        <h4>🧰 Garage</h4>
+        <div class="muted">Spend prize money on gear: diet, claw care, feather care and a warm-up kit. Each upgrade makes ${c.bird.name} a little better for good.</div>
+        <div class="cbtns"><button class="btn" data-c="garage">OPEN GARAGE</button></div>
       </div>
       <div class="ccard">
         <h4>Sponsor</h4>

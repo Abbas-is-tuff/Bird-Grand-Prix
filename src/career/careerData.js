@@ -130,3 +130,44 @@ export const TRAVEL_EVENTS = [
   { modes: ['bus', 'train', 'plane'], text: 'Local radio interview when you arrived. New fans!', money: 35 },
   { modes: ['bus', 'train', 'plane'], text: 'Your hotel has a bird bath with a view. Bliss.', fatigue: -4 },
 ];
+
+// ---- Garage gear (Phase 5): permanent upgrades you buy with prize money.
+// bonus = how much better that stat gets (0.02 = 2%). minTier = the career level you need (0 = Beginner).
+export const GEAR = {
+  diet: {
+    name: 'Racing diet', icon: '🥣', stat: 'staminaCap', statName: 'stamina',
+    levels: [
+      { name: 'Plain seed mix', cost: 0, bonus: 0 },
+      { name: 'Premium seeds & pellets', cost: 220, bonus: 0.015, minTier: 0 },
+      { name: 'Sports nutrition plan', cost: 650, bonus: 0.03, minTier: 1 },
+      { name: 'Champion diet', cost: 1600, bonus: 0.045, minTier: 2 },
+    ],
+  },
+  claws: {
+    name: 'Claw & foot care', icon: '🦶', stat: 'grip', statName: 'cornering grip',
+    levels: [
+      { name: 'Natural claws', cost: 0, bonus: 0 },
+      { name: 'Trimmed claws', cost: 180, bonus: 0.02, minTier: 0 },
+      { name: 'Grip foot balm', cost: 550, bonus: 0.04, minTier: 1 },
+      { name: 'Pro podiatrist', cost: 1400, bonus: 0.06, minTier: 2 },
+    ],
+  },
+  feathers: {
+    name: 'Feather care', icon: '🪶', stat: 'topSpeed', statName: 'top speed',
+    levels: [
+      { name: 'Normal preening', cost: 0, bonus: 0 },
+      { name: 'Daily misting bath', cost: 260, bonus: 0.01, minTier: 0 },
+      { name: 'Sleek feather oil', cost: 800, bonus: 0.02, minTier: 1 },
+      { name: 'Aero-groom pro', cost: 2000, bonus: 0.03, minTier: 2 },
+    ],
+  },
+  warmup: {
+    name: 'Warm-up kit', icon: '🔥', stat: 'accel', statName: 'acceleration',
+    levels: [
+      { name: 'Stretch on the perch', cost: 0, bonus: 0 },
+      { name: 'Heated perch', cost: 200, bonus: 0.015, minTier: 0 },
+      { name: 'Sprint starting blocks', cost: 600, bonus: 0.03, minTier: 1 },
+      { name: 'Reaction trainer', cost: 1500, bonus: 0.045, minTier: 2 },
+    ],
+  },
+};

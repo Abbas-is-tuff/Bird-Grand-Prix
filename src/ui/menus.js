@@ -41,7 +41,7 @@ export class Menus {
   }
 
   show(id) {
-    for (const s of ['menu', 'setup', 'settings', 'pause', 'results', 'loading', 'career']) $(s).classList.toggle('show', s === id);
+    for (const s of ['menu', 'setup', 'settings', 'pause', 'results', 'loading', 'career', 'garage']) $(s).classList.toggle('show', s === id);
     if (id === 'menu') this.updateCareerBadge();
     if (id === 'pause') this.preparePause();
     if (id !== this.current) this.prev = this.current;
@@ -88,6 +88,7 @@ export class Menus {
     switch (a) {
       case 'quick': this.openSetup('race'); break;
       case 'career': g.careerUI.open('home'); break;
+      case 'garage': g.garageUI.open(this.sel.bird); break;
       case 'training': g.careerUI.open(g.career ? 'train' : 'home'); break;
       case 'career-continue': g.continueCareer(); break;
       case 'collection': this.openSetup('collection'); break;

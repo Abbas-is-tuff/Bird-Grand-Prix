@@ -15,6 +15,7 @@ import { HUD } from '../ui/hud.js';
 import { Menus } from '../ui/menus.js';
 import { renderPortraits } from '../ui/portraits.js';
 import { CareerUI } from '../ui/careerUI.js';
+import { GarageUI } from '../ui/garageUI.js';
 import { Career } from '../career/career.js';
 import { DRILLS, scoreDrill } from '../career/drills.js';
 import { Race } from '../race/race.js';
@@ -80,6 +81,7 @@ export class Game {
     this.menus = new Menus(this);
     this.career = Career.load();
     this.careerUI = new CareerUI(this);
+    this.garageUI = new GarageUI(this);
     try {
       this.menus.portraits = renderPortraits(renderer, ROSTER);
     } catch (e) {
@@ -118,8 +120,8 @@ export class Game {
   }
 
   // ---------------------------------------------------------------- menu preview bird
-  previewBird(id) {
-    if (this.preview?.id === id) return;
+  previewBird(id, force = false) {
+    if (this.preview?.id === id && !force) return;
     if (this.preview) {
       this.preview.model.dispose();
       this.preview = null;
@@ -448,7 +450,14 @@ export class Game {
     } else if (focus) {
       const cur = this.menus.current;
       const wide = window.innerWidth > 700;
-      this.director.shiftTarget = this.state === 'race' || !wide ? 0 : cur === 'setup' || cur === 'career' ? 0.24 : cur === 'menu' ? -0.16 : 0;
+      this.director.shiftTarget = this.state === 'race' || !wide ? 0 : cur === 'garage' ? 0.3 : cur === 'setup' || cur === 'career' ? 0.24 : cur === 'menu' ? -0.16 : 0;
+      this.director.menuZoom = cur === 'garage' ? 0.72 : 1;
+      if (cur === 'garage' && this.preview) {
+        const m = this.preview.model;
+        const f = m.head.getWorldPosition(this._front || (this._front = new THREE.Vector3())).sub(m.root.position);
+        f.y = 0;
+        this.director.menuFront = f.normalize();
+      } else this.director.menuFront = null;
       this.director.update(dt, Object.assign({ focus, special }, ctxExtra));
       this.env.update(dt, this.time, focus);
     }
