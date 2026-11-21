@@ -5,6 +5,7 @@ import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { T } from './track.js';
 import { adTexture, concreteTexture, groundTexture, windowsTexture, SPONSORS } from './textures.js';
 import { mulberry32, formatTime } from '../core/utils.js';
+import { LOGO_PNG } from '../ui/logoImage.js';
 
 export const crowdUniforms = { uTime: { value: 0 }, uExcite: { value: 0.2 } };
 
@@ -36,6 +37,13 @@ export class Stadium {
     scene.add(this.group);
     this.rng = mulberry32(2026);
     this.quality = quality;
+    // the logo picture is drawn onto the scoreboard and grandstand sign once it has loaded
+    this.logo = new Image();
+    this.logo.onload = () => {
+      if (this.lastBoard) this.drawBoard(this.lastBoard);
+      if (this.drawSign) this.drawSign();
+    };
+    this.logo.src = LOGO_PNG;
     this.tierGeos = [];
     this.seats = []; // {x,y,z,ry}
     this.buildGround();
@@ -254,20 +262,29 @@ export class Stadium {
       col.castShadow = true;
       this.group.add(col);
     }
-    // grandstand name sign
+    // grandstand name sign (logo + stadium name)
     const sign = document.createElement('canvas');
     sign.width = 1024;
     sign.height = 96;
     const ctx = sign.getContext('2d');
-    ctx.fillStyle = '#0d1a33';
-    ctx.fillRect(0, 0, 1024, 96);
-    ctx.fillStyle = '#ffc93c';
-    ctx.font = 'italic 900 64px Arial, sans-serif';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText('BIRD GRAND PRIX  •  FEATHERFIELD STADIUM', 512, 52);
     const tex = new THREE.CanvasTexture(sign);
     tex.colorSpace = THREE.SRGBColorSpace;
+    this.drawSign = () => {
+      ctx.fillStyle = '#0d1a33';
+      ctx.fillRect(0, 0, 1024, 96);
+      let x = 512;
+      ctx.textAlign = 'center';
+      if (this.logo.complete && this.logo.naturalWidth) {
+        ctx.drawImage(this.logo, 30, 4, 264, 88);
+        x = 640;
+      }
+      ctx.fillStyle = '#ffc93c';
+      ctx.font = 'italic 900 58px Arial, sans-serif';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(x === 512 ? 'BIRD GRAND PRIX  •  FEATHERFIELD STADIUM' : 'FEATHERFIELD STADIUM', x, 52);
+      tex.needsUpdate = true;
+    };
+    this.drawSign();
     const s = new THREE.Mesh(new THREE.PlaneGeometry(42, 3.9), new THREE.MeshBasicMaterial({ map: tex, toneMapped: false }));
     s.position.set(0, ms.top + 5.6, zIn - 1.0);
     s.rotation.y = Math.PI;
@@ -336,6 +353,7 @@ export class Stadium {
   }
 
   drawBoard({ title, time, rows }) {
+    this.lastBoard = { title, time, rows };
     const ctx = this.boardCtx;
     ctx.fillStyle = '#05070c';
     ctx.fillRect(0, 0, 1024, 512);
@@ -373,9 +391,13 @@ export class Stadium {
     });
     if (!rows.length) {
       ctx.textAlign = 'center';
-      ctx.fillStyle = '#ffffff';
-      ctx.font = 'italic 900 80px Arial, sans-serif';
-      ctx.fillText('FEATHERFIELD', 512, 280);
+      if (this.logo.complete && this.logo.naturalWidth) {
+        ctx.drawImage(this.logo, 512 - 330, 118, 660, 220);
+      } else {
+        ctx.fillStyle = '#ffffff';
+        ctx.font = 'italic 900 80px Arial, sans-serif';
+        ctx.fillText('FEATHERFIELD', 512, 280);
+      }
       ctx.fillStyle = '#9fb3c8';
       ctx.font = 'bold 40px Arial, sans-serif';
       ctx.fillText(SPONSORS[0].name + '  •  ' + SPONSORS[3].name + '  •  ' + SPONSORS[6].name, 512, 380);

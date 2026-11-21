@@ -103,6 +103,7 @@ bird-grand-prix/
 ├── index.html            the page: menus, HUD, buttons
 ├── style.css             how the menus and HUD look
 ├── icon.png              home-screen icon
+├── logo.svg              the game logo (vector, any size)
 ├── play-offline.html     the whole game in one file (double-click to play)
 ├── lib/                  Three.js 3D engine (don't edit)
 └── src/
@@ -157,4 +158,5 @@ node build.mjs
 ## Credits and licences
 
 * 3D engine: [Three.js](https://threejs.org) — MIT licence.
+* Logo lettering: shapes traced from the font *Saira Condensed* by Omnibus-Type — SIL Open Font Licence 1.1.
 * Everything else (bird models, textures, sounds, music, sponsor names) is original and generated in code for this game.

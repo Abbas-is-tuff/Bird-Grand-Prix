@@ -40,15 +40,16 @@ html, body {
 #loadfill { height: 100%; width: 5%; background: linear-gradient(90deg, var(--red), var(--gold)); transition: width 0.2s; }
 #loadtext { color: var(--muted); font-size: 14px; }
 
-.logo { display: flex; flex-direction: column; align-items: center; line-height: 0.9; font-family: var(--display); font-style: italic; font-weight: 900; text-shadow: 0 4px 24px rgba(0,0,0,0.6); }
-.logo-top { font-size: clamp(22px, 4vw, 34px); letter-spacing: 0.5em; color: var(--gold); margin-left: 0.5em; }
-.logo-main { font-size: clamp(42px, 9vw, 92px); letter-spacing: 0.02em; background: linear-gradient(180deg, #fff 30%, #c9d6ea); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.logo { display: flex; justify-content: center; }
+.logo-svg { display: block; width: min(560px, 86vw); height: auto; filter: drop-shadow(0 8px 28px rgba(0,0,0,0.55)); }
+#loading .logo-svg { animation: logo-in 0.6s ease-out; }
+@keyframes logo-in { from { opacity: 0; transform: translateY(10px) scale(0.97); } to { opacity: 1; transform: none; } }
 
 /* ---------- main menu ---------- */
 #menu { justify-content: flex-start; background: linear-gradient(90deg, rgba(4,8,18,0.82) 0%, rgba(4,8,18,0.45) 45%, rgba(4,8,18,0) 75%); }
 .menu-inner { display: flex; flex-direction: column; align-items: flex-start; gap: 14px; max-width: 420px; margin-left: 3vw; }
-.menu-inner .logo { align-items: flex-start; }
-.menu-inner .logo-top { margin-left: 0.1em; }
+.menu-inner .logo { justify-content: flex-start; margin-left: -6px; }
+.menu-inner .logo-svg { width: min(420px, 78vw); }
 .tagline { color: var(--muted); font-size: 14px; margin-top: -4px; }
 .menu-buttons { display: flex; flex-direction: column; gap: 8px; width: min(330px, 80vw); margin-top: 6px; }
 .version { color: rgba(255,255,255,0.35); font-size: 11px; margin-top: 6px; }
@@ -219,8 +220,7 @@ body.no-touch #hint { bottom: calc(90px + var(--safe-b)); }
   .menu-inner { gap: 6px; }
   .menu-buttons { gap: 5px; margin-top: 2px; }
   .menu-buttons .btn { padding: 6px 12px; font-size: 14px; }
-  .menu-inner .logo-top { font-size: 15px; }
-  .menu-inner .logo-main { font-size: 34px; }
+  .menu-inner .logo-svg { width: 250px; }
   .tagline, .version { display: none; }
   .standings { top: calc(74px + var(--safe-t)); }
   .standings .srow { padding: 2px 8px 2px 6px; }
