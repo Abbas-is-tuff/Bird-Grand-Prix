@@ -46,15 +46,16 @@ export const ROSTER = [
     },
   },
   {
-    id: 'silver', name: 'Silver', species: 'pigeon', number: 9, mine: true,
+    id: 'silver', name: 'Silver', species: 'lovebird', number: 9, mine: true,
     personality: 'endurance', trait: 'Never gets tired',
     mods: { staminaCap: 0.05 },
     colors: {
-      body: '#a9adb3', belly: '#b3b6bb', back: '#9da2a9', head: '#8e939b',
-      face: '#8e939b', neck: '#5d8a6c', bib: '#7b6390',
-      wing: '#aeb2b8', wingCovert: '#b6b9be', wingTip: '#3c3f45', wingBar: '#34373c',
-      rump: '#bfc2c6', tail: '#8f949b', tailTip: '#2f3236',
-      beak: '#3b3a3c', cere: '#e9e6e0', iris: '#e0761f', legs: '#c4564f',
+      // grey (pale-headed) lovebird: creamy white head, pale chest, slate-grey wings
+      body: '#c9cbcc', belly: '#dcdcd8', back: '#7e8794', head: '#ece9df',
+      face: '#f1eee6', forehead: '#f4f1ea', throat: '#e6e4dc', bib: '#e0dfd9',
+      rump: '#8a95a6', wing: '#6f7884', wingCovert: '#7d8691', wingTip: '#3e444d',
+      tail: '#7a8390', tailBand: '#a9b0ba', tailTip: '#4a515b',
+      beak: '#f2b6bd', iris: '#1a1414', legs: '#e9c4c4',
     },
   },
   {
