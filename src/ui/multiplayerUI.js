@@ -161,6 +161,9 @@ export class MultiplayerUI {
 
   renderOnline() {
     const s = this.game.online;
+    if (!navigator.onLine && !s.connected) {
+      return `<div class="ccard"><h4>✈️ You're offline</h4><div class="muted">Online races need the internet. Everything else works offline, including <b>SAME DEVICE</b> races with a friend.</div></div>`;
+    }
     if (s.available == null) return '<div class="muted">Checking if online play works here…</div>';
     if (!s.available) {
       return `<div class="ccard"><h4>🌐 Online play isn't available here</h4>
