@@ -12,7 +12,10 @@ const STEP = 1 / 120;
 const tmp = {};
 
 export class Race extends Emitter {
-  constructor({ scene, input, raceId, playerBirdId, opponentIds, difficulty = 'normal', oppSpeed = null, playerBonus = null, drill = null }) {
+  // player2BirdId + input2: a second person on the same device.
+  // remotes: [{ key, birdId, lane }] birds raced by people online (moved by NetController). lanes: fixed lanes (online).
+  constructor({ scene, input, raceId, playerBirdId, opponentIds, difficulty = 'normal', oppSpeed = null, playerBonus = null, drill = null,
+    player2BirdId = null, input2 = null, remotes = [], lanes: fixedLanes = null, makeNetController = null }) {
     super();
     this.scene = scene;
     this.input = input;
@@ -20,24 +23,38 @@ export class Race extends Emitter {
     this.drill = drill; // training drill settings (or null in a normal race)
     this.barrierDists = this.def.barriers || [];
     this.diff = DIFFICULTY[difficulty] || DIFFICULTY.normal;
-    this.solo = opponentIds.length === 0;
+    this.input2 = input2;
+    this.online = remotes.length > 0 || !!fixedLanes;
+    const entries = [{ id: playerBirdId, kind: 'player' }];
+    if (player2BirdId) entries.push({ id: player2BirdId, kind: 'p2' });
+    for (const rm of remotes) entries.push({ id: rm.birdId, kind: 'remote', key: rm.key, lane: rm.lane });
+    opponentIds.forEach((id, j) => entries.push({ id, kind: 'ai', j }));
+    this.solo = entries.length === 1;
     this.breakDist = Math.PI * (T.R + measureOffset(1));
-    const lanes = opponentIds.length === 0 ? [4] : shuffle([2, 3, 4, 5, 6, 7]);
-    const ids = [playerBirdId, ...opponentIds];
-    this.racers = ids.map((id, i) => {
-      const bird = BIRDS[id];
-      const isPlayer = i === 0;
+    const lanes = this.solo ? [4] : shuffle(entries.length > 6 ? [1, 2, 3, 4, 5, 6, 7, 8] : [2, 3, 4, 5, 6, 7]);
+    if (fixedLanes) entries.forEach((e, i) => { lanes[i] = e.kind === 'player' ? fixedLanes.me : e.lane; });
+    this.racers = entries.map((e, i) => {
+      const bird = BIRDS[e.id];
+      const isPlayer = e.kind === 'player';
       const r = new Racer({
         bird, isPlayer, lane: lanes[i], bandColor: BAND_COLORS[i % BAND_COLORS.length],
-        speedMul: isPlayer ? 1 : oppSpeed?.[i - 1] ?? this.diff.speed,
+        speedMul: e.kind === 'ai' ? oppSpeed?.[e.j] ?? this.diff.speed : 1,
         bonus: isPlayer ? playerBonus : null,
       });
-      r.controller = isPlayer ? new PlayerController(r, this, input) : new AIController(r, this, bird.personality, this.diff);
+      r.isHuman = isPlayer || e.kind === 'p2';
+      r.isP2 = e.kind === 'p2';
+      r.isRemote = e.kind === 'remote';
+      r.netKey = e.key || null;
+      if (isPlayer) r.controller = new PlayerController(r, this, input);
+      else if (r.isP2) r.controller = new PlayerController(r, this, input2);
+      else if (r.isRemote) r.controller = makeNetController(r, this);
+      else r.controller = new AIController(r, this, bird.personality, this.diff);
       scene.add(r.model.root);
       scene.add(r.tag);
       return r;
     });
     this.player = this.racers[0];
+    this.player2 = this.racers.find((r) => r.isP2) || null;
     for (const r of this.racers) {
       r.barriers = this.barrierDists.length ? placeBarriers(scene, this.barrierDists, r.lane, this.startPoint(r.lane), this.def.mode) : [];
     }
@@ -65,6 +82,7 @@ export class Race extends Emitter {
   resetPositions() {
     this.raceTime = 0;
     this.finishOrder = [];
+    this.elimLap = 1;
     this.leader = null;
     this.flags = {};
     this.standings = this.racers.slice();
@@ -80,7 +98,7 @@ export class Race extends Emitter {
     const lap = lapLength(m);
     let s0;
     if (this.def.mode === 'lane') s0 = (((T.L - D) % lap) + lap) % lap;
-    else s0 = T.L + Math.PI * (T.R + m) - this.breakDist;
+    else s0 = T.L - (D % 400) + Math.PI * (T.R + m) - this.breakDist;
     const p = pointAt(s0, m, laneCenter(lane), {});
     return { x: p.x, z: p.z, h: p.h, s: s0, m };
   }
@@ -150,7 +168,7 @@ export class Race extends Emitter {
     if (D <= 100) return 0.95;
     const st = r.stats;
     const e = Math.pow((0.7 * st.staminaCap * st.topSpeed) / D, 0.2);
-    return Math.min(0.95, Math.max(0.6, e));
+    return Math.min(0.95, Math.max(0.42, e));
   }
 
   insideBlocked(r) {
@@ -167,7 +185,7 @@ export class Race extends Emitter {
   setPhase(p) {
     this.phase = p;
     this.phaseTime = 0;
-    if (p === 'set') this.setHold = rand(1.4, 2.4);
+    if (p === 'set') this.setHold = this.fixedSetHold ?? rand(1.4, 2.4);
     this.emit('phase', p);
   }
 
@@ -177,6 +195,12 @@ export class Race extends Emitter {
 
   falseStart(r) {
     if (this.phase === 'recall') return;
+    if (this.online) {
+      // online there's no recall: a false start knocks only you out
+      r.dq = 'False start';
+      this.emit('falseStart', { racer: r, dq: true });
+      return;
+    }
     this.acc = 0;
     r.falseStarts = (r.falseStarts || 0) + 1;
     const disq = r.falseStarts >= 2;
@@ -198,6 +222,10 @@ export class Race extends Emitter {
       case 'set':
         if (!this.player.dq && inp.going && this.phaseTime > 0.35) {
           this.falseStart(this.player);
+          break;
+        }
+        if (this.player2 && !this.player2.dq && this.input2.going && this.phaseTime > 0.35) {
+          this.falseStart(this.player2);
           break;
         }
         if (this.phaseTime > this.setHold) {
@@ -257,6 +285,10 @@ export class Race extends Emitter {
   step(dt) {
     const D = this.def.dist;
     for (const r of this.racers) {
+      if (r.isRemote) {
+        r.controller.update(dt); // moved by what the other player's game reports
+        continue;
+      }
       if (r.dq === 'False start') {
         r.ctrl.throttle = 0;
         r.ctrl.desiredHeading = r.body.h;
@@ -310,7 +342,7 @@ export class Race extends Emitter {
         if (d >= (r.lane - 1) * T.W && d <= r.lane * T.W) r.laneTime += dt;
       }
       // lane discipline on bends (stepping inside your lane gains distance = disqualified)
-      if (!r.finished && !r.dq && r.pmode !== 'straight' && this.laneLocked(r) && r.lane > 1 && r.loc.curv > 0) {
+      if (!r.finished && !r.dq && !r.isRemote && r.pmode !== 'straight' && this.laneLocked(r) && r.lane > 1 && r.loc.curv > 0) {
         const inner = (r.lane - 1) * T.W;
         if (r.loc.d < inner - 0.12) r.laneViolation += dt;
         else r.laneViolation = Math.max(0, r.laneViolation - dt * 0.5);
@@ -319,6 +351,28 @@ export class Race extends Emitter {
           this.emit('dq', r);
         }
       }
+    }
+    if (this.def.elimination) this.checkElimination();
+  }
+
+  // Elimination race: when everyone else still in the race has finished a lap, the last bird is out.
+  checkElimination() {
+    const alive = this.racers.filter((r) => !r.finished && !r.dq);
+    this.elimLap ||= 1;
+    if (this.elimLap >= this.def.laps || alive.length < 2) return;
+    const line = this.def.dist - (this.def.laps - this.elimLap) * 400;
+    const behind = alive.filter((r) => r.progress < line);
+    if (behind.length === 1 && alive.length > 1) {
+      const r = behind[0];
+      r.dq = 'Eliminated';
+      r.elimLap = this.elimLap;
+      r.finished = true;
+      r.finishTime = this.raceTime;
+      r.coolD = clamp(r.loc.d, 0.5, T.EDGE - 0.5);
+      this.elimLap++;
+      this.emit('eliminated', r);
+    } else if (behind.length === 0) {
+      this.elimLap++;
     }
   }
 
@@ -443,18 +497,23 @@ export class Race extends Emitter {
     }
     const active = this.racers.filter((r) => r.dq !== 'False start');
     const allDone = active.every((r) => r.finished);
-    const p = this.player;
-    const playerFinishedAt = p.finished ? p.finishTime : null;
-    const aiDone = active.filter((r) => !r.isPlayer).every((r) => r.finished);
-    const lastAI = Math.max(0, ...active.filter((r) => !r.isPlayer && r.finished).map((r) => r.finishTime));
+    const humans = active.filter((r) => r.isHuman);
+    const humansDone = humans.every((r) => r.finished);
+    const lastHuman = humans.length && humansDone ? Math.max(...humans.map((r) => r.finishTime)) : null;
+    const ai = active.filter((r) => !r.isHuman && !r.isRemote);
+    const aiDone = ai.every((r) => r.finished);
+    const lastAI = Math.max(0, ...ai.filter((r) => r.finished).map((r) => r.finishTime));
+    const remotesDone = active.filter((r) => r.isRemote).every((r) => r.finished);
     let end = allDone;
-    if (playerFinishedAt != null && this.raceTime > playerFinishedAt + 12) end = true;
-    const hasAI = active.some((r) => !r.isPlayer);
-    if (hasAI && (p.dq === 'False start' || !p.finished) && aiDone && this.raceTime > lastAI + (p.dq === 'False start' ? 3 : 20)) end = true;
-    if (!hasAI && (p.dq === 'False start' || this.raceTime > 60 + this.def.dist * 0.6)) end = true;
+    const wait = this.online ? 30 : 12;
+    if (lastHuman != null && this.raceTime > lastHuman + wait && (aiDone || !this.online)) end = true;
+    if (this.online && lastHuman != null && remotesDone && aiDone && this.raceTime > lastHuman + 2) end = true;
+    if (!humans.length && (remotesDone || this.raceTime > 30 + this.def.dist * 0.6) && (ai.length === 0 || aiDone)) end = true;
+    if (ai.length && !humansDone && aiDone && remotesDone && this.raceTime > lastAI + 20) end = true;
+    if (!ai.length && !this.online && this.raceTime > 60 + this.def.dist * 0.6) end = true;
     if (end) {
       for (const r of active) {
-        if (!r.finished && !r.isPlayer) {
+        if (!r.finished && !r.isPlayer && !r.isRemote && !r.isP2) {
           r.finishTime = this.raceTime + (this.def.dist - r.progress) / Math.max(3, r.body.speed);
           r.finished = true;
           r.estimated = true;
@@ -477,6 +536,7 @@ export class Race extends Emitter {
       const ka = a.dq ? 2 : a.time == null ? 1 : 0;
       const kb = b.dq ? 2 : b.time == null ? 1 : 0;
       if (ka !== kb) return ka - kb;
+      if (a.dq === 'Eliminated' && b.dq === 'Eliminated') return b.racer.elimLap - a.racer.elimLap;
       return (a.time ?? 1e9) - (b.time ?? 1e9);
     });
     const win = rows[0].time;

@@ -116,7 +116,7 @@ export class HUD {
     if (p.barriers.length) {
       this.lap.textContent = `BARRIERS ${p.barriersCleared}/${p.barriers.length}`;
     } else if (race.def.laps > 1) {
-      const lap = clamp(Math.floor(Math.max(0, p.progress) / 400) + 1, 1, race.def.laps);
+      const lap = clamp(race.def.laps - Math.ceil((race.def.dist - Math.max(0, p.progress)) / 400) + 1, 1, race.def.laps);
       this.lap.textContent = p.finished ? '' : `LAP ${lap}/${race.def.laps}`;
     }
     // stamina + speed

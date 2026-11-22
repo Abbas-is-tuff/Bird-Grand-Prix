@@ -41,7 +41,7 @@ export class Menus {
   }
 
   show(id) {
-    for (const s of ['menu', 'setup', 'settings', 'pause', 'results', 'loading', 'career', 'garage']) $(s).classList.toggle('show', s === id);
+    for (const s of ['menu', 'setup', 'settings', 'pause', 'results', 'loading', 'career', 'garage', 'multi']) $(s).classList.toggle('show', s === id);
     if (id === 'menu') this.updateCareerBadge();
     if (id === 'pause') this.preparePause();
     if (id !== this.current) this.prev = this.current;
@@ -89,6 +89,7 @@ export class Menus {
       case 'quick': this.openSetup('race'); break;
       case 'career': g.careerUI.open('home'); break;
       case 'garage': g.garageUI.open(this.sel.bird); break;
+      case 'multiplayer': g.multiUI.open(); break;
       case 'training': g.careerUI.open(g.career ? 'train' : 'home'); break;
       case 'career-continue': g.continueCareer(); break;
       case 'collection': this.openSetup('collection'); break;
@@ -114,7 +115,16 @@ export class Menus {
       case 'restart': this.hideAll(); g.restartRace(); break;
       case 'quit': this.hideAll(); g.quitRace(); break;
       case 'again': this.hideAll(); g.restartRace(); break;
-      case 'change': g.quitRace(true); this.openSetup('race'); break;
+      case 'change':
+        if (g.lastOpts?.player2 || g.lastOpts?.online) {
+          const tab = g.lastOpts.online ? 'online' : 'local';
+          g.quitRace(true);
+          g.multiUI.open(tab);
+        } else {
+          g.quitRace(true);
+          this.openSetup('race');
+        }
+        break;
       default: break;
     }
   }
@@ -289,7 +299,8 @@ export class Menus {
     const cont = document.querySelector('#results [data-action=career-continue]');
     if (cont) cont.textContent = 'CONTINUE CAREER';
     let banner;
-    if (p.dq) banner = `DISQUALIFIED<div class="sub">${p.dq === 'False start' ? 'Two false starts. Wait for the gun!' : 'You stepped inside your lane on a bend.'}</div>`;
+    if (p.dq === 'Eliminated') banner = `ELIMINATED<div class="sub">Last at the end of lap ${p.racer.elimLap}. Stay out of last place!</div>`;
+    else if (p.dq) banner = `DISQUALIFIED<div class="sub">${p.dq === 'False start' ? 'Two false starts. Wait for the gun!' : 'You stepped inside your lane on a bend.'}</div>`;
     else if (p.time == null) banner = 'DID NOT FINISH<div class="sub">Hold RUN or SPRINT to race.</div>';
     else {
       const head = res.rows.length === 1 ? 'TIME TRIAL COMPLETE' : p.place === 1 ? 'VICTORY!' : `${ordinal(p.place)} PLACE`;
@@ -304,7 +315,7 @@ export class Menus {
     $('res-banner').innerHTML = banner;
     const rows = res.rows.map((r) => {
       const me = r.racer.isPlayer;
-      const pl = r.place ? r.place : r.dq ? 'DQ' : 'DNF';
+      const pl = r.place ? r.place : r.dq === 'Eliminated' ? 'OUT' : r.dq ? 'DQ' : 'DNF';
       const time = r.time != null && !r.dq ? formatTime(r.time) + (r.estimated ? '*' : '') : '—';
       const gap = r.gap != null && !r.dq ? '+' + r.gap.toFixed(2) : '';
       const rt = r.reaction != null ? r.reaction.toFixed(3) : '—';

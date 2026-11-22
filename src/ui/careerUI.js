@@ -471,7 +471,7 @@ export class CareerUI {
     const c = this.career;
     const s = c.stats;
     const winRate = s.races ? Math.round((s.wins / s.races) * 100) : 0;
-    const bests = ['r100', 'h100', 'r200', 'r400', 'r800'].map((r) => `<span>${RACES[r].short}</span><b>${s.best[r] ? formatTime(s.best[r]) : '—'}</b>`).join('');
+    const bests = Object.keys(RACES).map((r) => `<span>${RACES[r].short}</span><b>${s.best[r] ? formatTime(s.best[r]) : '—'}</b>`).join('');
     const trophies = c.trophies.map((t) => `<div class="trophy"><span class="ti">${t.icon}</span>${t.name}<div class="ts">Season ${t.season}</div></div>`).join('');
     const hist = c.history.slice(0, 20).map((h) => `<tr><td>S${h.season} W${h.week}</td><td>${h.final ? '🏆 ' : ''}${h.event} <span class="muted">${RACES[h.raceId].short}${h.venue ? ' • ' + VENUES[h.venue].city : ''}</span></td>
       <td>${h.place ? ordinal(h.place) : h.dq ? 'DQ' : 'DNF'}</td><td>${h.time ? formatTime(h.time) : '—'}</td><td>${h.prize ? money(h.prize) : '—'}</td></tr>`).join('');

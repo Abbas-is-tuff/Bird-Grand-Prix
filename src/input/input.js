@@ -18,6 +18,7 @@ export class Input {
         if (k === 'KeyP' || k === 'Escape') this.pressed.add('pause');
         if (k === 'Enter') this.pressed.add('skip');
         if (k === 'Space' || k === 'KeyJ') this.pressed.add('jump');
+        if (k === 'ArrowDown' || k === 'Slash') this.pressed.add('jump2');
         this.anyPress = true;
       }
       this.keys.add(k);
@@ -45,7 +46,7 @@ export class Input {
         pointers.add(e.pointerId);
         try { btn.setPointerCapture(e.pointerId); } catch (err) { /* ignore */ }
         this.anyPress = true;
-        if (name === 'jump') this.pressed.add('jump');
+        if (name === 'jump' || name === 'jump2') this.pressed.add(name);
         update();
       });
       const up = (e) => {
@@ -75,6 +76,12 @@ export class Input {
     return this.run || this.sprint;
   }
 
+  // Controls for one player when two people share this device.
+  // Player 1: W run, Left Shift sprint, A/D steer, Space jump.  Player 2: arrows, Right Shift or / sprint... see README.
+  pad(n) {
+    return new Pad(this, n);
+  }
+
   consume(name) {
     if (this.pressed.has(name)) {
       this.pressed.delete(name);
@@ -86,5 +93,34 @@ export class Input {
   endFrame() {
     this.pressed.clear();
     this.anyPress = false;
+  }
+}
+
+// One player's view of the controls in 2-player mode.
+class Pad {
+  constructor(input, n) {
+    this.i = input;
+    this.n = n;
+  }
+  k(code) {
+    return this.i.keys.has(code);
+  }
+  t(name) {
+    return (this.i.touch[this.n === 2 ? name + '2' : name] || 0) > 0;
+  }
+  get run() {
+    return this.n === 1 ? this.k('KeyW') || this.t('run') : this.k('ArrowUp') || this.t('run');
+  }
+  get sprint() {
+    return this.n === 1 ? this.k('ShiftLeft') || this.t('sprint') : this.k('ShiftRight') || this.k('Period') || this.t('sprint');
+  }
+  get left() {
+    return (this.n === 1 ? this.k('KeyA') : this.k('ArrowLeft')) || this.t('left') ? 1 : 0;
+  }
+  get right() {
+    return (this.n === 1 ? this.k('KeyD') : this.k('ArrowRight')) || this.t('right') ? 1 : 0;
+  }
+  get going() {
+    return this.run || this.sprint;
   }
 }

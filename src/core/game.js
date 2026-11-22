@@ -16,6 +16,8 @@ import { Menus } from '../ui/menus.js';
 import { renderPortraits } from '../ui/portraits.js';
 import { CareerUI } from '../ui/careerUI.js';
 import { GarageUI } from '../ui/garageUI.js';
+import { MultiplayerUI } from '../ui/multiplayerUI.js';
+import { OnlineSession, NetController } from '../net/online.js';
 import { Career } from '../career/career.js';
 import { DRILLS, scoreDrill } from '../career/drills.js';
 import { Race } from '../race/race.js';
@@ -76,12 +78,16 @@ export class Game {
 
     this.input = new Input();
     this.input.bindTouchButtons(document.getElementById('touch'));
+    this.input.bindTouchButtons(document.getElementById('touch2'));
     this.audio = new AudioEngine(settings);
     this.hud = new HUD();
     this.menus = new Menus(this);
     this.career = Career.load();
     this.careerUI = new CareerUI(this);
     this.garageUI = new GarageUI(this);
+    this.online = new OnlineSession(this);
+    this.multiUI = new MultiplayerUI(this);
+    this.online.on('go', (g) => this.startOnlineRace(g));
     try {
       this.menus.portraits = renderPortraits(renderer, ROSTER);
     } catch (e) {
@@ -92,6 +98,12 @@ export class Game {
 
     document.getElementById('cam-btn').addEventListener('click', () => this.cycleCamera());
     document.getElementById('pause-btn').addEventListener('click', () => this.pause());
+    // fast-forward for long races (800 m and up): 1x -> 2x -> 4x
+    document.getElementById('ff-btn').addEventListener('click', () => {
+      if (!this.race || this.race.online) return;
+      this.timeScale = this.timeScale >= 4 ? 1 : this.timeScale * 2;
+      document.getElementById('ff-x').textContent = `${this.timeScale}×`;
+    });
     window.addEventListener('resize', () => this.onResize());
     document.addEventListener('visibilitychange', () => {
       if (document.hidden && this.state === 'race' && !this.paused) this.pause();
@@ -214,6 +226,7 @@ export class Game {
     }
     this.careerRecorded = false;
     if (opts.difficulty === 'solo') opts.opponents = [];
+    if (opts.online) opts.opponents = [];
     if (!opts.opponents) {
       opts.opponents = shuffle(ROSTER.filter((b) => b.id !== opts.bird).map((b) => b.id)).slice(0, 5);
     }
@@ -225,12 +238,22 @@ export class Game {
       scene: this.scene, input: this.input, raceId: opts.raceDef || opts.race, playerBirdId: opts.bird,
       opponentIds: opts.opponents, difficulty: opts.difficulty, oppSpeed: opts.oppSpeed || null, playerBonus: opts.playerBonus || null,
       drill: opts.drill ? DRILLS[opts.drill] : null,
+      ...(opts.player2 ? { player2BirdId: opts.player2, input: this.input.pad(1), input2: this.input.pad(2) } : {}),
+      ...(opts.online ? {
+        remotes: opts.online.remotes, lanes: { me: opts.online.lane },
+        makeNetController: (r, rc) => new NetController(r, rc, this.online),
+      } : {}),
     });
+    if (opts.online) race.fixedSetHold = opts.online.hold;
     this.race = race;
     race.venue = this.venue;
     this.track.setRaceMarkings(race.def, race.lanesUsed, (k) => race.startPoint(k));
     this.hud.reset(race);
     this.hud.show(true);
+    this.timeScale = 1;
+    this.hud.root.classList.toggle('two', !!race.player2);
+    document.getElementById('ff-x').textContent = '1×';
+    document.getElementById('ff-btn').style.display = race.def.dist >= 800 && !race.online ? '' : 'none';
     this.commentary = new Commentary(race, this.audio, this.hud);
     this.director.setMode(this.director.mode || 'chase');
     this.director.cutNext = true;
@@ -270,6 +293,13 @@ export class Game {
         this.hud.hint('You stepped inside your lane on the bend.', 3);
       }
     });
+    race.on('eliminated', (r) => {
+      this.audio.clatter?.(0.15);
+      if (r.isPlayer) {
+        this.hud.big('ELIMINATED', 'red', 2.5);
+        this.hud.hint('You were last at the end of the lap.', 3);
+      } else this.hud.hint(`${r.name} is OUT — last at the end of lap ${r.elimLap}.`, 3);
+    });
     race.on('results', (res) => this.showResults(res));
     race.on('barrierHit', ({ racer }) => {
       this.audio.clatter(racer.isPlayer ? 0.5 : 0.25);
@@ -298,7 +328,25 @@ export class Game {
     }
   }
 
+  // the host pressed START in an online room
+  startOnlineRace({ go, remotes, lane }) {
+    if (this.state === 'race' && this.race && !this.resultsShown && this.lastOpts?.online) return;
+    this.menus.hideAll();
+    this.online.sentFinish = false;
+    this.startRace({
+      bird: this.menus.sel.bird, race: go.race, venue: VENUES[go.venue] ? go.venue : 'featherfield',
+      time: VENUES[go.venue]?.indoor ? 'indoor' : 'day', difficulty: 'normal', opponents: [],
+      online: { remotes, lane, hold: Math.min(3, Math.max(1, +go.hold || 1.8)) },
+    });
+  }
+
   restartRace() {
+    if (this.lastOpts?.online) {
+      // online: go back to the room and wait for the host
+      this.quitRace();
+      this.multiUI.open('online');
+      return;
+    }
     if (!this.lastOpts || this.lastOpts.careerEventId || this.lastOpts.drill) return;
     this.menus.hideAll();
     this.startRace(Object.assign({}, this.lastOpts, { venue: this.venueId }));
@@ -334,8 +382,44 @@ export class Game {
     this.paused = false;
   }
 
+  // extra lines on the results screen for 2-player and online races
+  extraResults(res) {
+    const el = document.getElementById('res-banner');
+    if (!el) return;
+    const p2 = res.rows.find((r) => r.racer.isP2);
+    const p1 = res.player;
+    if (p2) {
+      const t = (r) => (r.place ? `${ordinal(r.place)}${r.time != null ? ' — ' + formatTime(r.time) : ''}` : r.dq || 'DNF');
+      const win = p1.place && (!p2.place || p1.place < p2.place) ? 'PLAYER 1 WINS!' : p2.place && (!p1.place || p2.place < p1.place) ? 'PLAYER 2 WINS!' : 'DRAW!';
+      el.insertAdjacentHTML('beforeend', `<div class="sub" style="margin-top:6px">🎮 ${win}<br>P1 ${p1.racer.name}: ${t(p1)} • P2 ${p2.racer.name}: ${t(p2)}</div>`);
+    }
+    if (this.lastOpts?.online) {
+      el.insertAdjacentHTML('beforeend', `<div class="sub" style="margin-top:6px">🌐 Online race. Each bird is timed by its own player's game. Tap RACE AGAIN to go back to the room.</div>`);
+    }
+  }
+
+  updateP2Hud(race) {
+    this.p2t = (this.p2t || 0) - 1;
+    if (this.p2t > 0) return;
+    this.p2t = 6;
+    const p = race.player2;
+    const place = race.standings.indexOf(p) + 1;
+    const el = document.getElementById('hud-p2');
+    const st = p.dq ? p.dq.toUpperCase() : p.finished ? `FINISHED ${formatTime(p.finishTime)}` : `${ordinal(place || 1)} • ${Math.round(p.body.speed * 3.6)} km/h`;
+    el.innerHTML = `P2 ${p.name}: ${st}<div class="bar2"><i style="width:${Math.round(p.body.stamina * 100)}%"></i></div>`;
+  }
+
   pause() {
     if (this.state !== 'race' || this.paused) return;
+    if (this.race?.online) {
+      this.hud.hint("Online races can't be paused. Tap ❚❚ again to leave the race.", 2.5);
+      if (this.pausePressedAt && performance.now() - this.pausePressedAt < 2500) {
+        this.pausePressedAt = 0;
+        this.quitRace();
+        this.multiUI.open('online');
+      } else this.pausePressedAt = performance.now();
+      return;
+    }
     this.paused = true;
     this.audio.stopSpeech();
     this.menus.show('pause');
@@ -354,6 +438,8 @@ export class Game {
   }
 
   showResults(res) {
+    this.timeScale = 1;
+    setTimeout(() => this.extraResults(res), 0);
     this.resultsShown = true;
     if (this.lastOpts?.drill && this.career) {
       if (this.careerRecorded) return;
@@ -392,6 +478,7 @@ export class Game {
     if (inp.consume('camera') && this.state === 'race') this.cycleCamera();
     if (inp.consume('skip') && this.race?.phase === 'intro') this.race.skipIntro();
     if (inp.consume('jump') && this.state === 'race' && this.race && !this.paused) this.race.player.controller.queueJump?.();
+    if (inp.consume('jump2') && this.state === 'race' && this.race?.player2 && !this.paused) this.race.player2.controller.queueJump?.();
     if (inp.anyPress) this.audio.unlock();
 
     let focus;
@@ -415,6 +502,16 @@ export class Game {
       }
       const b = fr.body;
       focus = { x: b.x, z: b.z, h: b.h, vx: b.vx, vz: b.vz, speed: b.speed, size: fr.species.size };
+      const p2 = race.player2;
+      if (p2 && !special && fr === race.player) {
+        // two players: aim between them and pull back as they spread apart
+        const c = p2.body;
+        const sep = Math.hypot(c.x - b.x, c.z - b.z);
+        focus = { x: (b.x + c.x) / 2, z: (b.z + c.z) / 2, h: b.h, vx: (b.vx + c.vx) / 2, vz: (b.vz + c.vz) / 2,
+          speed: (b.speed + c.speed) / 2, size: Math.max(fr.species.size, p2.species.size) * (1 + Math.min(sep, 30) / 6) };
+        this.updateP2Hud(race);
+      }
+      if (race.online) this.online.sendRaceState(race, dt);
       this.hud.update(dt, race, settings.showFps ? this.fpsSmooth : null);
       this.updateTags(race);
       crowdUniforms.uExcite.value = race.excitement;
@@ -450,7 +547,7 @@ export class Game {
     } else if (focus) {
       const cur = this.menus.current;
       const wide = window.innerWidth > 700;
-      this.director.shiftTarget = this.state === 'race' || !wide ? 0 : cur === 'garage' ? 0.3 : cur === 'setup' || cur === 'career' ? 0.24 : cur === 'menu' ? -0.16 : 0;
+      this.director.shiftTarget = this.state === 'race' || !wide ? 0 : cur === 'garage' || cur === 'multi' ? 0.3 : cur === 'setup' || cur === 'career' ? 0.24 : cur === 'menu' ? -0.16 : 0;
       this.director.menuZoom = cur === 'garage' ? 0.72 : 1;
       if (cur === 'garage' && this.preview) {
         const m = this.preview.model;

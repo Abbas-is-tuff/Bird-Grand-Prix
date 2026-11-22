@@ -144,9 +144,9 @@
         <button class="btn" data-action="career">CAREER <small id="career-badge">NEW</small></button>
         <button class="btn" data-action="training">TRAINING</button>
         <button class="btn" data-action="garage">GARAGE</button>
-        <button class="btn locked" data-action="locked" data-msg="Online multiplayer arrives in Phase 6.">MULTIPLAYER <small>Phase 6</small></button>
+        <button class="btn" data-action="multiplayer">MULTIPLAYER</button>
       </div>
-      <div class="version">Version 0.5 • Garage, designed birds & gear</div>
+      <div class="version">Version 0.6 • Multiplayer, new races & new birds</div>
     </div>
   </div>
 
@@ -200,6 +200,18 @@
     </div>
   </div>
 
+  <!-- Multiplayer -->
+  <div id="multi" class="screen">
+    <div class="panel career-panel">
+      <div class="panel-head career-head">
+        <button class="btn small ghost" data-m="close">‹ MENU</button>
+        <div class="career-title">MULTIPLAYER<small>Race your friends</small></div>
+      </div>
+      <div id="multi-tabs" class="tabs"></div>
+      <div id="multi-body" class="career-body"></div>
+    </div>
+  </div>
+
   <!-- Garage -->
   <div id="garage" class="screen">
     <div class="panel career-panel">
@@ -236,6 +248,7 @@
       </div>
       <div class="hud-buttons">
         <button class="hbtn" id="cam-btn"><span class="ico">🎥</span><span id="cam-name">Chase</span></button>
+        <button class="hbtn" id="ff-btn" title="Speed up long races">⏩ <span id="ff-x">1×</span></button>
         <button class="hbtn" id="pause-btn">❚❚</button>
       </div>
     </div>
@@ -261,6 +274,17 @@
         <button class="tbtn run" data-input="run">RUN</button>
       </div>
     </div>
+    <div id="touch2" class="touch2">
+      <div class="pad p1"><span class="ptag">P1</span>
+        <button class="tbtn" data-input="left">◀</button><button class="tbtn" data-input="right">▶</button>
+        <button class="tbtn jump" data-input="jump">JUMP</button><button class="tbtn sprint" data-input="sprint">SPRINT</button><button class="tbtn run" data-input="run">RUN</button>
+      </div>
+      <div class="pad p2"><span class="ptag">P2</span>
+        <button class="tbtn run" data-input="run2">RUN</button><button class="tbtn sprint" data-input="sprint2">SPRINT</button><button class="tbtn jump" data-input="jump2">JUMP</button>
+        <button class="tbtn" data-input="left2">◀</button><button class="tbtn" data-input="right2">▶</button>
+      </div>
+    </div>
+    <div id="hud-p2"></div>
     <div id="fps"></div>
   </div>
 

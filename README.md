@@ -1,7 +1,7 @@
-# BIRD GRAND PRIX — Version 0.5
+# BIRD GRAND PRIX — Version 0.6
 
 A 3D bird ground-racing game that runs in a web browser (PC, iPad, phone).
-This version covers **Phase 1 (foundation), Phase 2 (racing), Phase 3 (AI) and Phase 4 (career & training)** of the plan, plus **6 stadiums and career travel**, and **Phase 5 (garage & customisation)**.
+This version covers **Phase 1 (foundation), Phase 2 (racing), Phase 3 (AI) and Phase 4 (career & training)** of the plan, plus **6 stadiums and career travel**, **Phase 5 (garage & customisation)** and **Phase 6 (multiplayer)**, with new race types and new birds.
 
 **Play it online:** once GitHub Pages is switched on (see below) the game is at
 `https://abbas-is-tuff.github.io/Bird-Grand-Prix/`
@@ -27,6 +27,45 @@ This version covers **Phase 1 (foundation), Phase 2 (racing), Phase 3 (AI) and P
 
 | Time trials | Quick Race → Rivals → **Time trial**: race alone against the clock. |
 | Barriers | Bird-sized hurdles. **JUMP** just before each one. Clear it and you keep your speed; hit it and it falls over and you lose half your speed. **100 m Barriers** is a race type (also in career from Amateur level). |
+
+### Phase 6: Multiplayer
+
+Open **MULTIPLAYER** from the main menu.
+
+| Mode | How it works |
+|---|---|
+| SAME DEVICE | Two players on one keyboard or one iPad. Pick a bird each, a race, a stadium and 0, 2 or 4 computer birds. The camera keeps both birds in view, and Player 2's place and stamina show at the top right. |
+| ONLINE | Real-time races against friends on other devices. One player taps **NEW ROOM** and tells the others the 4-character code; they type it and tap JOIN, choose a bird and press **I'M READY**. The host (marked 👑) picks the race and stadium and presses START. Each game times its own bird from its own starting gun, so times are fair. Up to 8 birds. |
+
+**Online needs the Claude page.** Online rooms use a feature of the Claude page the game is published on, so they work only when the game is opened from that link (not from GitHub Pages or `play-offline.html`). Friends must be signed in to Claude and invited through the page's **Share** menu. Online races can't be paused (tap ❚❚ twice to leave), and a false start knocks out only you. The 1200 m Elimination and the Marathon are not offered online yet.
+
+**Two-player controls**
+
+| | Player 1 | Player 2 |
+|---|---|---|
+| Run | W | ↑ |
+| Sprint | Left Shift | Right Shift (or .) |
+| Steer | A / D | ← / → |
+| Jump | Space | ↓ |
+| Touch | buttons on the left | buttons on the right |
+
+### Race types
+
+| Race | What it is |
+|---|---|
+| 60 m Dash | A very short straight sprint — all about the start. |
+| 100 m Sprint | The classic straight sprint. |
+| 100 m Barriers | 7 barriers on the straight. JUMP over them. |
+| 200 m | One bend in lanes and the home straight. |
+| 400 m | A full lap in lanes. |
+| 400 m Steeplechase | A jumping race: 9 barriers around a full lap, on the bends too. |
+| 800 m Endurance | Two laps; break to the inside after the first bend. |
+| 1200 m Elimination | Three laps. The last bird at the end of each lap is OUT. |
+| Marathon 3000 m | 7½ laps. Cruise with RUN and save your sprint for the end. Use the **⏩** button to speed up long races (2× or 4×). |
+
+### New birds
+
+Two new species: the **Roadrunner** (long legs and tail, the best top speed, tires on long races) and the **Quail** (tiny and round, the fastest start and best cornering). Ten new rivals: Dash and Bolt (roadrunners), Pip and Button (quails), Blaze (canary), Ziggy (budgie), Pepper (pigeon), Ruby (parrot), Coco (cockatiel) and Peach (lovebird). You can also design roadrunners and quails in the Garage.
 
 ### Phase 5: Garage
 
@@ -98,7 +137,7 @@ Careers saved before version 0.4 still load; your bird simply starts at home in 
 
 Leaving a career race through the pause menu counts as a DNF (did not finish), so you can't restart a race you're losing.
 
-**Not in this version yet (coming in later phases):** obstacle races, weather, online multiplayer. Their menu buttons are shown as locked.
+**Not in this version yet:** weather, online leaderboards, relay races.
 
 ---
 
@@ -167,6 +206,7 @@ bird-grand-prix/
     ├── core/game.js      the main loop: menus ⇄ races, camera, sound, scoreboard
     ├── core/settings.js  settings and personal bests (saved on your device)
     ├── core/utils.js     small maths helpers
+    ├── net/online.js     ★ online rooms: sharing where each bird is, starting races together
     ├── core/garage.js    ★ garage: accessories, colours, your designed birds (saved on your device)
     ├── data/species.js   ★ the 6 species: speed, stamina, grip, body shape, gait
     ├── data/roster.js    ★ every bird: name, number, colours, personality

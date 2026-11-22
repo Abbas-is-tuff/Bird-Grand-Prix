@@ -9,14 +9,14 @@ export const PRIZE_SPLIT = [1, 0.6, 0.38, 0.22, 0.12, 0.06];
 export const RP_TABLE = [10, 7, 5, 3, 2, 1];
 
 // Fatigue added by racing each distance
-export const RACE_FATIGUE = { r100: 10, h100: 12, r200: 14, r400: 20, r800: 28 };
+export const RACE_FATIGUE = { r60: 8, r100: 10, h100: 12, r200: 14, r400: 20, h400: 24, r800: 28, e1200: 32, r3000: 40 };
 
 export const TIERS = [
   {
     id: 'beginner', name: 'Beginner', icon: '🥚', color: '#8fd16a',
     blurb: 'Small local competitions. Learn the ropes.',
     oppSpeed: [0.9, 0.935], entry: 0, prize: 200, rpMult: 1, costMult: 1,
-    races: ['r100', 'r200'], times: ['day'],
+    races: ['r60', 'r100', 'r200'], times: ['day'],
     events: ['Local Club Meet', 'Seedco Sprint Series', 'Sunday Club Races', 'Park Run Open'],
     cup: 'Beginner Cup Final',
   },
@@ -24,7 +24,7 @@ export const TIERS = [
     id: 'amateur', name: 'Amateur', icon: '🐣', color: '#5fb8ff',
     blurb: 'Better competitions, tougher rivals, bigger rewards.',
     oppSpeed: [0.93, 0.962], entry: 40, prize: 650, rpMult: 2, costMult: 2,
-    races: ['r100', 'h100', 'r200', 'r400'], times: ['day', 'sunset'],
+    races: ['r60', 'r100', 'h100', 'r200', 'r400', 'h400'], times: ['day', 'sunset'],
     events: ['Regional Open', 'Millet Mart Classic', 'Perch Air Invitational', 'County Championships'],
     cup: 'Amateur League Final',
   },
@@ -32,7 +32,7 @@ export const TIERS = [
     id: 'pro', name: 'Professional', icon: '🦅', color: '#ffc93c',
     blurb: 'National competitions in professional stadiums. Sponsors are watching.',
     oppSpeed: [0.958, 0.985], entry: 150, prize: 2200, rpMult: 4, costMult: 4,
-    races: ['r100', 'h100', 'r200', 'r400', 'r800'], times: ['day', 'sunset', 'night'],
+    races: ['r100', 'h100', 'r200', 'r400', 'h400', 'r800', 'e1200', 'r3000'], times: ['day', 'sunset', 'night'],
     events: ['National Series', 'Feather Fuel Grand Prix', 'Nest Homes Night Gala', 'Chirp Mobile Classic'],
     cup: 'National Championship',
   },
@@ -40,7 +40,7 @@ export const TIERS = [
     id: 'champion', name: 'Champion', icon: '👑', color: '#ff7a5f',
     blurb: 'International championships against the elite.',
     oppSpeed: [0.982, 1.02], entry: 400, prize: 7000, rpMult: 8, costMult: 8,
-    races: ['r100', 'h100', 'r200', 'r400', 'r800'], times: ['day', 'sunset', 'night'],
+    races: ['r100', 'h100', 'r200', 'r400', 'h400', 'r800', 'e1200', 'r3000'], times: ['day', 'sunset', 'night'],
     events: ['International Grand Prix', 'Wingspan World Series', 'Skyway Diamond League', 'Golden Feather Meeting'],
     cup: 'World Championship',
   },

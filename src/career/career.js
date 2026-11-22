@@ -142,7 +142,8 @@ export class Career {
     }
     const [lo, hi] = t.oppSpeed;
     const oppSpeed = field.map((id) => +clamp(rand(lo, hi) + (birdStrength(id) - 55) / 2500, lo - 0.01, hi + 0.01).toFixed(4));
-    const distMul = raceId === 'r800' ? 1.25 : raceId === 'r400' ? 1.12 : 1;
+    const d = RACES[raceId].dist;
+    const distMul = d >= 3000 ? 1.6 : d >= 1200 ? 1.4 : d >= 800 ? 1.25 : d >= 400 ? 1.12 : 1;
     const top = t.prize * (final ? 3 : 1) * distMul * VENUES[venue].prestige;
     return {
       id: `${this.season}-${this.week}-${i}`,

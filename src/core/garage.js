@@ -39,7 +39,7 @@ export const PERSONALITY_TRAITS = {
 };
 
 // Which roster bird each species uses as its starting colours when you design a bird.
-const TEMPLATE = { lovebird: 'abbas', cockatiel: 'cookie', pigeon: 'rocket', parrot: 'salman', budgerigar: 'sky', canary: 'pikachu' };
+const TEMPLATE = { lovebird: 'abbas', cockatiel: 'cookie', pigeon: 'rocket', parrot: 'salman', budgerigar: 'sky', canary: 'pikachu', roadrunner: 'dash', quail: 'pip' };
 
 // The colour groups you can change. "keys" are the palette keys each group sets.
 export const COLOR_GROUPS = [
@@ -47,7 +47,7 @@ export const COLOR_GROUPS = [
   { id: 'head', name: 'Head' },
   { id: 'face', name: 'Face' },
   { id: 'cheek', name: 'Cheeks', only: ['cockatiel', 'budgerigar'] },
-  { id: 'crest', name: 'Crest', only: ['cockatiel'] },
+  { id: 'crest', name: 'Crest', only: ['cockatiel', 'roadrunner', 'quail'] },
   { id: 'wings', name: 'Wings' },
   { id: 'tail', name: 'Tail' },
   { id: 'beak', name: 'Beak' },
@@ -68,12 +68,18 @@ function load() {
 
 function save() {
   try {
-    localStorage.setItem(KEY, JSON.stringify(data));
+    const looks = Object.fromEntries(Object.entries(data.looks).filter(([k]) => !k.startsWith('net-')));
+    localStorage.setItem(KEY, JSON.stringify({ ...data, looks }));
   } catch (e) { /* storage full or blocked */ }
 }
 
 export function getLook(id) {
   return data.looks[id] || {};
+}
+
+// a look for another player's bird in an online race (not saved)
+export function setTempLook(id, look) {
+  data.looks[id] = look;
 }
 
 export function setLook(id, patch) {
@@ -98,7 +104,7 @@ export function designFromColors(species, c) {
     tail: c.tail || c.body, beak: c.beak || '#e8d6b0', legs: c.legs || '#c9a8a0', eyes: c.iris || '#1a1414',
   };
   if (species === 'cockatiel' || species === 'budgerigar') d.cheek = c.cheek || '#f08a3a';
-  if (species === 'cockatiel') d.crest = c.crest || d.head;
+  if (['cockatiel', 'roadrunner', 'quail'].includes(species)) d.crest = c.crest || d.head;
   return d;
 }
 
@@ -151,7 +157,7 @@ export const customBirds = () => ROSTER.filter((b) => b.custom);
 
 export function nextNumber() {
   const used = new Set(ROSTER.map((b) => b.number));
-  let n = 15;
+  let n = 31;
   while (used.has(n)) n++;
   return n;
 }

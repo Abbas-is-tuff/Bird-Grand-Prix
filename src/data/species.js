@@ -1,4 +1,4 @@
-// The six playable bird species.
+// The eight playable bird species.
 // "stats" drive the physics. "shape" drives the 3D model. "gait" drives the running animation.
 //
 // Physics stats:
@@ -125,6 +125,44 @@ export const SPECIES = {
       legs: { tibia: 0.23, tarsus: 0.18, toes: 'aniso', toeLen: 0.085, width: 0.065, thick: 0.85 },
     },
     gait: { waddle: 0.04, bounce: 1.35, headBob: 0, stride: 0.95 },
+  },
+  roadrunner: {
+    id: 'roadrunner',
+    name: 'Roadrunner',
+    blurb: 'Built to run: long legs, long tail and the best top speed of all. Tires on long races.',
+    stats: { topSpeed: 9.05, accel: 5.5, staminaCap: 22, recovery: 0.04, grip: 0.24, turnRate: 2.5, mass: 0.9 },
+    size: 1.05,
+    shape: {
+      body: [0.15, 0.16, 0.3],
+      pitch: 0.22,
+      headR: 0.1,
+      head: [0, 0.07, 0.09],
+      beak: { len: 0.17, r: 0.03, hook: 0.12, width: 0.7 },
+      tail: { len: 0.56, width: 0.15, count: 10, tip: 'rounded', droop: 0.02 },
+      wingLen: 0.4,
+      crest: 6, crestLen: 0.55, crestTilt: 0.55,
+      legs: { tibia: 0.27, tarsus: 0.21, toes: 'zygo', toeLen: 0.09, width: 0.07, thick: 0.9 },
+    },
+    gait: { waddle: 0.03, bounce: 0.8, headBob: 0, stride: 1.25 },
+  },
+  quail: {
+    id: 'quail',
+    name: 'Quail',
+    blurb: 'A round little ground bird. The fastest start of all and amazing on bends, but a short top speed.',
+    stats: { topSpeed: 8.45, accel: 8.7, staminaCap: 21, recovery: 0.055, grip: 0.35, turnRate: 3.0, mass: 0.5 },
+    size: 0.64,
+    shape: {
+      body: [0.18, 0.17, 0.22],
+      pitch: 0.12,
+      headR: 0.095,
+      head: [0, 0.06, 0.06],
+      beak: { len: 0.06, r: 0.035, hook: 0.3, width: 0.9 },
+      tail: { len: 0.08, width: 0.13, count: 8, tip: 'rounded', droop: 0.25 },
+      wingLen: 0.27,
+      crest: 2, crestLen: 0.5, crestTilt: -0.85,
+      legs: { tibia: 0.14, tarsus: 0.095, toes: 'aniso', toeLen: 0.07, width: 0.07, thick: 1.05 },
+    },
+    gait: { waddle: 0.05, bounce: 1.2, headBob: 0.5, stride: 0.9 },
   },
 };
 

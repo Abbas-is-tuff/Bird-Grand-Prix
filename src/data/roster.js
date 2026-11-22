@@ -159,4 +159,56 @@ export const ROSTER = [
   },
 ];
 
+// ---- more rivals (version 0.6). Each starts from a bird of the same species and changes its colours.
+const base = (id) => ROSTER.find((b) => b.id === id).colors;
+const rival = (id, name, species, number, personality, trait, colors, from) => ({
+  id, name, species, number, personality, trait, mods: {}, colors: from ? { ...base(from), ...colors } : colors,
+});
+ROSTER.push(
+  rival('dash', 'Dash', 'roadrunner', 21, 'fastStarter', 'Beep beep', {
+    body: '#8a6d50', belly: '#e8dcc4', back: '#5f4935', head: '#4e3c2c', face: '#d8c7a7', throat: '#efe6d4',
+    crest: '#3b2d21', crestTip: '#7b5f43', wing: '#4f3d2c', wingCovert: '#6b5440', wingTip: '#241b14',
+    tail: '#3d3027', tailTip: '#e6dccb', beak: '#2b2622', iris: '#c9601f', legs: '#7c7570',
+  }),
+  rival('bolt', 'Bolt', 'roadrunner', 22, 'aggressive', 'Never looks back', {
+    body: '#6f5a46', belly: '#d8cbb2', back: '#47382b', head: '#3a2e24', face: '#c9b796', throat: '#e2d6bf',
+    crest: '#2a2119', crestTip: '#5f4a36', wing: '#3e3125', wingCovert: '#56463a', wingTip: '#1c1510',
+    tail: '#2e251e', tailTip: '#d6cab4', beak: '#262220', iris: '#d3a23a', legs: '#6c6662',
+  }),
+  rival('pip', 'Pip', 'quail', 23, 'consistent', 'Tiny but mighty', {
+    body: '#8b7055', belly: '#d8c19c', back: '#6a5541', head: '#56473a', face: '#f1ede4', throat: '#201b18',
+    crest: '#1f1a17', crestTip: '#3a302a', wing: '#7b654f', wingCovert: '#8f7860', wingTip: '#4a3c2f',
+    tail: '#6a5541', tailTip: '#4a3c2f', beak: '#2a2522', iris: '#3a1d10', legs: '#c9a27a',
+  }),
+  rival('button', 'Button', 'quail', 24, 'unpredictable', 'Bounces everywhere', {
+    body: '#a98d6b', belly: '#ead9b8', back: '#8a7055', head: '#8a7055', face: '#e9dcc4', throat: '#c9b18e',
+    crest: '#5a4a3c', crestTip: '#7a6552', wing: '#9a8062', wingCovert: '#ad9374', wingTip: '#5f4c3a',
+    tail: '#8a7055', tailTip: '#5f4c3a', beak: '#3a332e', iris: '#3a1d10', legs: '#d8b48c',
+  }),
+  rival('blaze', 'Blaze', 'canary', 25, 'aggressive', 'Red-hot finish', {
+    body: '#e8562a', belly: '#f0733d', back: '#d84a22', head: '#ea5c2e', face: '#f06a36', wing: '#c9431f',
+    wingCovert: '#d84d24', wingTip: '#8f2e14', tail: '#c9431f', tailTip: '#8a2c12',
+  }, 'sunny'),
+  rival('ziggy', 'Ziggy', 'budgerigar', 26, 'unpredictable', 'Zig-zag runner', {
+    body: '#8a5fd0', belly: '#9c74dc', back: '#7a52c0', rump: '#8a5fd0',
+  }, 'sky'),
+  rival('pepper', 'Pepper', 'pigeon', 27, 'endurance', 'Big-city runner', {
+    body: '#4a4e57', belly: '#555963', back: '#40444c', head: '#33363d', face: '#33363d', wing: '#555a64',
+    wingCovert: '#5f6470', wingTip: '#16171a', wingBar: '#141518', tail: '#3a3d44', tailTip: '#141518',
+  }, 'rocket'),
+  rival('ruby', 'Ruby', 'parrot', 28, 'endurance', 'Royal stamina', {
+    body: '#c4142a', belly: '#b0102a', back: '#a8102a', head: '#d01830', face: '#d82034', wing: '#9a0f26',
+    wingCovert: '#2f55c8', wingTip: '#21348a', tail: '#a8102a', tailTip: '#e0a020', beak: '#1f1d1c',
+  }, 'salman'),
+  rival('coco', 'Coco', 'cockatiel', 29, 'consistent', 'Cool and calm', {
+    body: '#a68a72', belly: '#b39a84', back: '#97795f', wing: '#8e715a', wingCovert: '#9d806a', wingTip: '#5f4a3a',
+    tail: '#8e715a', tailTip: '#5f4a3a',
+  }, 'cookie'),
+  rival('peach', 'Peach', 'lovebird', 30, 'fastStarter', 'Sunshine sprinter', {
+    head: '#ece35e', face: '#f4a07a', forehead: '#f08a6a', throat: '#f6b48e',
+    body: '#e8e25a', belly: '#efe978', back: '#ddd64a', wing: '#d6cf40', wingCovert: '#e0d954', wingTip: '#b8ae2a',
+    tail: '#d6cf40', rump: '#e8e25a',
+  }, 'abbas'),
+);
+
 export const BIRDS = Object.fromEntries(ROSTER.map((b) => [b.id, b]));

@@ -461,13 +461,13 @@ export function createBirdModel(bird, bandColor = '#ffcc00') {
   // Crest (cockatiels)
   for (let i = 0; i < shape.crest; i++) {
     const u = shape.crest > 1 ? (i / (shape.crest - 1)) * 2 - 1 : 0;
-    const a = 0.25 + (1 - Math.abs(u)) * 0.1 + i * 0.03;
+    const a = 0.25 + (1 - Math.abs(u)) * 0.1 + i * 0.03 + (shape.crestTilt || 0);
     addFeather({
       group: 'crest', side: 0, u,
       pf: V(u * hr * 0.12, hr * 0.78, hr * (0.42 - i * 0.03)),
       dir: V(u * 0.12, Math.cos(a), -Math.sin(a)),
       normal: V(0, -Math.sin(a), -Math.cos(a)),
-      len: hr * (1.7 + 0.35 * (1 - Math.abs(u))), width: 0.035,
+      len: hr * (1.7 + 0.35 * (1 - Math.abs(u))) * (shape.crestLen || 1), width: 0.035,
       color: pal.crest, tip: pal.crestTip, tipStart: 0.5, flutter: 0.6,
     });
   }

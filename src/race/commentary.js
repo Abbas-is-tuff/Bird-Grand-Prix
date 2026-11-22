@@ -73,7 +73,8 @@ export class Commentary {
       this.lastBumpCall = t;
       this.line(`Contact between ${a.name} and ${b.name}!`);
     });
-    on('dq', (r) => this.speakLine(`${r.name} has stepped inside the lane and is disqualified!`, true));
+    on('eliminated', (r) => this.speakLine(`${r.name} is last over the line and is eliminated!`, true));
+    on('dq', (r) => r.dq === 'Eliminated' || this.speakLine(`${r.name} has stepped inside the lane and is disqualified!`, true));
     on('break', () => this.hud.hint('Break line! You can move to the inside lane now (steer left).', 4));
     on('finish', (r) => {
       const order = race.finishOrder;
