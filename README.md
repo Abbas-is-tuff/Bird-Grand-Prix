@@ -28,13 +28,18 @@ This version covers **Phase 1 (foundation), Phase 2 (racing), Phase 3 (AI) and P
 | Time trials | Quick Race → Rivals → **Time trial**: race alone against the clock. |
 | Barriers | Bird-sized hurdles. **JUMP** just before each one. Clear it and you keep your speed; hit it and it falls over and you lose half your speed. **100 m Barriers** is a race type (also in career from Amateur level). |
 
+### Two HTML files
+
+* `index.html` is the **built** game: everything in one file. GitHub Pages serves this one.
+* `dev.html` is the page you edit and test while coding: it loads the files in `src/` one by one. After changing code, run `node build.mjs` to rebuild `index.html`.
+
 ### Offline mode ✈️
 
 The game needs no internet once it's on your device. Three ways:
 
 | How | What to do |
 |---|---|
-| GitHub Pages / iPad Home Screen | Put the 5 files from the `web/` build (`index.html`, `sw.js`, `manifest.webmanifest`, `icon.png`, `icon-512.png`) at the top of your repo. Open the game **once with internet**: the menu says **✈️ Saved for offline play**. Add it to your Home Screen (Share → Add to Home Screen) and it opens with Wi-Fi off. When you're online again, updates download quietly and show next time you open it. |
+| GitHub Pages / iPad Home Screen | These files are already at the top of this repo: `index.html` (the built game), `sw.js`, `manifest.webmanifest`, `icon.png`, `icon-512.png`. Turn on GitHub Pages for the repo. Open the game **once with internet**: the menu says **✈️ Saved for offline play**. Add it to your Home Screen (Share → Add to Home Screen) and it opens with Wi-Fi off. When you're online again, updates download quietly and show next time you open it. |
 | A single file | `play-offline.html` is the whole game in one file. Copy it to any device and open it in a browser, no internet needed. |
 | The Claude page | Needs the internet (it's a web page on Claude). |
 
